@@ -17,18 +17,15 @@ const db = admin.firestore();
 const settings = {
   name: 'Fraol Dirirsa',
   role: 'Junior Flutter Developer',
-  brandPrefix: 'Flutter',
   heroTitle: 'I build clean, useful Flutter apps for mobile and web.',
   heroSubtitle:
     'Junior Flutter Developer focused on building responsive interfaces, Firebase-powered applications, and practical digital experiences. I enjoy turning ideas into polished products while continuously improving my engineering skills.',
   heroPrimaryCta: 'Let’s work together',
   heroSecondaryCta: 'View my work',
   heroCvLabel: 'CV',
-  heroAvailabilityLabel: 'Available for freelance',
+  heroAvailabilityLabel: 'Available for hire',
   heroPillOneLabel: 'Flutter',
   heroPillTwoLabel: 'Firebase',
-  heroPillOneIconName: 'flutter_dash_rounded',
-  heroPillTwoIconName: 'cloud_outlined',
   heroTrustItems: [
     'Addis Ababa, Ethiopia',
     'Flutter + Firebase',
@@ -100,7 +97,7 @@ const settings = {
   ],
 
   contactEyebrow: 'Contact',
-  contactTitle: 'Let’s build something.',
+  contactTitle: 'Have something worth building?',
   contactSubtitle:
     'No pressure, no giant brief required. A few clear sentences are enough to start the conversation.',
   contactCardTitle: 'Let’s make the next project a good one.',
@@ -132,15 +129,12 @@ const settings = {
   availabilityOpenLabel: 'For new opportunities',
   availabilityFocusedValue: 'Focused',
   availabilityFocusedLabel: 'Current availability',
-  qualityStatValue: '100%',
-  qualityStatLabel: 'Responsive UI focus',
   availableForHire: true,
   cvUrl: 'assets/cv/junior_flutter_cv.pdf',
   profilePhotoUrl: 'assets/images/profile.webp',
   email: 'hello@example.com',
   phone: '+251 900 000 000',
   location: 'Addis Ababa, Ethiopia',
-  contractPreference: 'Freelance / contract',
   socials: {
     github: 'https://github.com/',
     linkedin: 'https://www.linkedin.com/',

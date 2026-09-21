@@ -6,6 +6,7 @@ import '../../providers.dart';
 import '../../widgets/admin_scaffold.dart';
 import '../../widgets/content_icon.dart';
 import '../../widgets/liquid_glass_foundation.dart';
+import '../../widgets/portfolio_media.dart';
 
 class AdminSettingsScreen extends ConsumerStatefulWidget {
   const AdminSettingsScreen({super.key});
@@ -128,8 +129,6 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
       'availabilityOpenLabel': settings.availabilityOpenLabel,
       'availabilityFocusedValue': settings.availabilityFocusedValue,
       'availabilityFocusedLabel': settings.availabilityFocusedLabel,
-      'qualityStatValue': settings.qualityStatValue,
-      'qualityStatLabel': settings.qualityStatLabel,
       'cvUrl': settings.cvUrl,
       'profilePhotoUrl': settings.profilePhotoUrl,
       'email': settings.email,
@@ -236,8 +235,6 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
       availabilityOpenLabel: _text('availabilityOpenLabel'),
       availabilityFocusedValue: _text('availabilityFocusedValue'),
       availabilityFocusedLabel: _text('availabilityFocusedLabel'),
-      qualityStatValue: _text('qualityStatValue'),
-      qualityStatLabel: _text('qualityStatLabel'),
       availableForHire: _availableForHire,
       cvUrl: _text('cvUrl'),
       profilePhotoUrl: _text('profilePhotoUrl'),
@@ -432,7 +429,25 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
                   const SizedBox(height: 16),
 
                   _SectionCard(
-                    title: '01 · Identity & navigation',
+                    title: '01 · Profile',
+                    subtitle:
+                        'Add and preview the public profile shown across your portfolio. Use a Flutter asset path or a public HTTPS image URL.',
+                    child: _ProfileEditor(
+                      photoController: _controller('profilePhotoUrl'),
+                      nameController: _controller('name'),
+                      roleController: _controller('role'),
+                      locationController: _controller('location'),
+                      contractController: _controller('contractPreference'),
+                      onClearPhoto: () {
+                        setState(() => _controller('profilePhotoUrl').clear());
+                      },
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  _SectionCard(
+                    title: '02 · Identity & navigation',
                     subtitle:
                         'Change the name, role, brand prefix, and every visible navbar label.',
                     child: Column(
@@ -474,7 +489,7 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
                   const SizedBox(height: 16),
 
                   _SectionCard(
-                    title: '02 · Visibility & site controls',
+                    title: '03 · Visibility & site controls',
                     subtitle:
                         'Switch public sections and sub-sections on or off without touching code.',
                     child: Column(
@@ -558,7 +573,7 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
                   const SizedBox(height: 16),
 
                   _SectionCard(
-                    title: '03 · Hero',
+                    title: '04 · Hero',
                     subtitle:
                         'Everything visitor-facing in the hero is editable.',
                     child: Column(
@@ -628,7 +643,7 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
                   const SizedBox(height: 16),
 
                   _SectionCard(
-                    title: '04 · Stats & availability',
+                    title: '05 · Stats & availability',
                     subtitle:
                         'Edit the numbers, labels, and all availability copy.',
                     child: Column(
@@ -678,12 +693,6 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
                             'Availability focused label',
                           ),
                         ),
-                        const SizedBox(height: 12),
-                        _pair(
-                          context,
-                          _field('qualityStatValue', 'Fourth stat value'),
-                          _field('qualityStatLabel', 'Fourth stat label'),
-                        ),
                         const SizedBox(height: 8),
                         SwitchListTile.adaptive(
                           contentPadding: EdgeInsets.zero,
@@ -704,7 +713,7 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
                   const SizedBox(height: 16),
 
                   _SectionCard(
-                    title: '05 · About, skills, core stack & working style',
+                    title: '06 · About, skills, core stack & working style',
                     subtitle: 'Control all visible About copy and lists.',
                     child: Column(
                       children: [
@@ -760,7 +769,7 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
                   const SizedBox(height: 16),
 
                   _SectionCard(
-                    title: '06 · Projects',
+                    title: '07 · Projects',
                     subtitle:
                         'Control every section heading, note, feature label, and filter category. Use Admin → Projects for actual project records.',
                     child: Column(
@@ -795,7 +804,7 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
                   const SizedBox(height: 16),
 
                   _SectionCard(
-                    title: '07 · Services & How I work',
+                    title: '08 · Services & How I work',
                     subtitle:
                         'Service records remain in Admin → Services. This controls their surrounding copy and the six-step timeline labels/icons.',
                     child: Column(
@@ -827,7 +836,7 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
                   const SizedBox(height: 16),
 
                   _SectionCard(
-                    title: '08 · Contact & conversion',
+                    title: '09 · Contact & conversion',
                     subtitle:
                         'Every contact heading, paragraph, label, hint, button, and success message is editable.',
                     child: Column(
@@ -892,7 +901,7 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
                   const SizedBox(height: 16),
 
                   _SectionCard(
-                    title: '09 · Contact details & social links',
+                    title: '10 · Contact details & social links',
                     child: Column(
                       children: [
                         _pair(
@@ -912,11 +921,6 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
                         ),
                         const SizedBox(height: 12),
                         _field('location', 'Location', required: true),
-                        _field(
-                          'contractPreference',
-                          'Contract preference',
-                          required: true,
-                        ),
                         const SizedBox(height: 18),
                         for (final entry in _socials.entries) ...[
                           TextFormField(
@@ -937,22 +941,20 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
                   const SizedBox(height: 16),
 
                   _SectionCard(
-                    title: '10 · Media (Spark/free)',
+                    title: '11 · Media (Spark/free)',
                     subtitle:
                         'No Firebase Storage. Use a Flutter asset path or a public HTTPS URL.',
                     child: Column(
                       children: [
                         _field(
-                          'profilePhotoUrl',
-                          'Profile photo path / URL',
-                          helperText: 'Example: assets/images/profile.webp',
-                        ),
-                        const SizedBox(height: 12),
-                        _field(
                           'cvUrl',
                           'CV path / URL',
                           helperText:
                               'Example: assets/cv/junior_flutter_cv.pdf',
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Profile photos are managed in the Profile section above.',
                         ),
                       ],
                     ),
@@ -961,7 +963,7 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
                   const SizedBox(height: 16),
 
                   _SectionCard(
-                    title: '11 · Tech stack animation',
+                    title: '12 · Tech stack animation',
                     subtitle:
                         'Control the end-to-end horizontal automatic scroll.',
                     child: Column(
@@ -986,7 +988,7 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
                   const SizedBox(height: 16),
 
                   _SectionCard(
-                    title: '12 · Footer',
+                    title: '13 · Footer',
                     child: Column(
                       children: [
                         _field('footerTagline', 'Footer tagline', maxLines: 2),
@@ -999,7 +1001,7 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
                   const SizedBox(height: 16),
 
                   _SectionCard(
-                    title: '13 · SEO',
+                    title: '14 · SEO',
                     subtitle: 'Editable SEO metadata for the public portfolio.',
                     child: Column(
                       children: [
@@ -1046,6 +1048,180 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _ProfileEditor extends StatelessWidget {
+  const _ProfileEditor({
+    required this.photoController,
+    required this.nameController,
+    required this.roleController,
+    required this.locationController,
+    required this.contractController,
+    required this.onClearPhoto,
+  });
+
+  final TextEditingController photoController;
+  final TextEditingController nameController;
+  final TextEditingController roleController;
+  final TextEditingController locationController;
+  final TextEditingController contractController;
+  final VoidCallback onClearPhoto;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 760;
+        final preview = Container(
+          width: compact ? double.infinity : 210,
+          height: compact ? 230 : 210,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: theme.colorScheme.outlineVariant),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: PortfolioImage(
+                  source: photoController.text.trim(),
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error) => const _ProfilePlaceholder(),
+                ),
+              ),
+              Positioned(
+                left: 12,
+                right: 12,
+                bottom: 12,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: .58),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: .10),
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 9,
+                    ),
+                    child: Text(
+                      photoController.text.trim().isEmpty
+                          ? 'No profile photo set'
+                          : 'Profile photo preview',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+
+        final fields = Column(
+          children: [
+            TextFormField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: 'Profile name',
+                prefixIcon: Icon(Icons.person_outline_rounded),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: roleController,
+              decoration: const InputDecoration(
+                labelText: 'Profile role',
+                prefixIcon: Icon(Icons.badge_outlined),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: locationController,
+              decoration: const InputDecoration(
+                labelText: 'Profile location',
+                prefixIcon: Icon(Icons.location_on_outlined),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: contractController,
+              decoration: const InputDecoration(
+                labelText: 'Contract preference',
+                prefixIcon: Icon(Icons.handshake_outlined),
+                hintText: 'Example: Freelance / Part-time',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: photoController,
+              decoration: InputDecoration(
+                labelText: 'Profile photo path / URL',
+                prefixIcon: const Icon(Icons.photo_camera_outlined),
+                helperText:
+                    'Example: assets/images/profile.webp or an HTTPS image URL',
+                suffixIcon: IconButton(
+                  tooltip: 'Clear profile photo',
+                  onPressed: onClearPhoto,
+                  icon: const Icon(Icons.clear_rounded),
+                ),
+              ),
+              keyboardType: TextInputType.url,
+            ),
+          ],
+        );
+
+        if (compact) {
+          return Column(
+            children: [preview, const SizedBox(height: 16), fields],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            preview,
+            const SizedBox(width: 18),
+            Expanded(child: fields),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ProfilePlaceholder extends StatelessWidget {
+  const _ProfilePlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            theme.colorScheme.primary.withValues(alpha: .16),
+            theme.colorScheme.secondary.withValues(alpha: .10),
+            theme.colorScheme.surfaceContainerHighest,
+          ],
+        ),
+      ),
+      alignment: Alignment.center,
+      child: Icon(
+        Icons.person_rounded,
+        size: 72,
+        color: theme.colorScheme.primary,
       ),
     );
   }

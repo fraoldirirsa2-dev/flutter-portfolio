@@ -112,8 +112,6 @@ class SiteSettings {
     required this.availabilityOpenLabel,
     required this.availabilityFocusedValue,
     required this.availabilityFocusedLabel,
-    required this.qualityStatValue,
-    required this.qualityStatLabel,
     required this.availableForHire,
     required this.cvUrl,
     required this.profilePhotoUrl,
@@ -212,8 +210,6 @@ class SiteSettings {
   final String availabilityOpenLabel;
   final String availabilityFocusedValue;
   final String availabilityFocusedLabel;
-  final String qualityStatValue;
-  final String qualityStatLabel;
   final bool availableForHire;
 
   final String cvUrl;
@@ -252,7 +248,7 @@ class SiteSettings {
     heroPrimaryCta: 'Let’s work together',
     heroSecondaryCta: 'View my work',
     heroCvLabel: 'CV',
-    heroAvailabilityLabel: 'Available for freelance',
+    heroAvailabilityLabel: 'Available for hire',
     heroPillOneLabel: 'Flutter',
     heroPillOneIconName: 'flutter_dash_rounded',
     heroPillTwoLabel: 'Firebase',
@@ -341,7 +337,7 @@ class SiteSettings {
       ProcessItem(number: '06', iconName: 'support_agent_rounded', label: 'Support'),
     ],
     contactEyebrow: 'Contact',
-    contactTitle: 'Let’s build something.',
+    contactTitle: 'Have something worth building?',
     contactSubtitle:
         'No pressure, no giant brief required. A few clear sentences are enough to start the conversation.',
     contactCardTitle: 'Let’s make the next project a good one.',
@@ -371,15 +367,13 @@ class SiteSettings {
     availabilityOpenLabel: 'For new opportunities',
     availabilityFocusedValue: 'Focused',
     availabilityFocusedLabel: 'Current availability',
-    qualityStatValue: '100%',
-    qualityStatLabel: 'Responsive UI focus',
     availableForHire: true,
     cvUrl: '',
     profilePhotoUrl: '',
     email: 'hello@example.com',
     phone: '+251 900 000 000',
     location: 'Addis Ababa, Ethiopia',
-    contractPreference: 'Freelance / contract',
+    contractPreference: 'Freelance / Part-time',
     socials: {
       'github': '',
       'linkedin': '',
@@ -480,8 +474,6 @@ class SiteSettings {
       availabilityOpenLabel: _asString(data['availabilityOpenLabel'], defaults.availabilityOpenLabel),
       availabilityFocusedValue: _asString(data['availabilityFocusedValue'], defaults.availabilityFocusedValue),
       availabilityFocusedLabel: _asString(data['availabilityFocusedLabel'], defaults.availabilityFocusedLabel),
-      qualityStatValue: _asString(data['qualityStatValue'], defaults.qualityStatValue),
-      qualityStatLabel: _asString(data['qualityStatLabel'], defaults.qualityStatLabel),
       availableForHire: data['availableForHire'] as bool? ?? defaults.availableForHire,
       cvUrl: _asString(data['cvUrl'], defaults.cvUrl),
       profilePhotoUrl: _asString(data['profilePhotoUrl'], defaults.profilePhotoUrl),
@@ -579,8 +571,6 @@ class SiteSettings {
     String? availabilityOpenLabel,
     String? availabilityFocusedValue,
     String? availabilityFocusedLabel,
-    String? qualityStatValue,
-    String? qualityStatLabel,
     bool? availableForHire,
     String? cvUrl,
     String? profilePhotoUrl,
@@ -673,8 +663,6 @@ class SiteSettings {
       availabilityOpenLabel: availabilityOpenLabel ?? this.availabilityOpenLabel,
       availabilityFocusedValue: availabilityFocusedValue ?? this.availabilityFocusedValue,
       availabilityFocusedLabel: availabilityFocusedLabel ?? this.availabilityFocusedLabel,
-      qualityStatValue: qualityStatValue ?? this.qualityStatValue,
-      qualityStatLabel: qualityStatLabel ?? this.qualityStatLabel,
       availableForHire: availableForHire ?? this.availableForHire,
       cvUrl: cvUrl ?? this.cvUrl,
       profilePhotoUrl: profilePhotoUrl ?? this.profilePhotoUrl,
@@ -769,8 +757,6 @@ class SiteSettings {
         'availabilityOpenLabel': availabilityOpenLabel,
         'availabilityFocusedValue': availabilityFocusedValue,
         'availabilityFocusedLabel': availabilityFocusedLabel,
-        'qualityStatValue': qualityStatValue,
-        'qualityStatLabel': qualityStatLabel,
         'availableForHire': availableForHire,
         'cvUrl': cvUrl,
         'profilePhotoUrl': profilePhotoUrl,

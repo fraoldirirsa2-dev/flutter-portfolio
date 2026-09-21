@@ -24,98 +24,82 @@ class AppNavbar extends ConsumerWidget {
         ref.watch(siteSettingsProvider).value ?? SiteSettings.defaults;
     final compact = MediaQuery.sizeOf(context).width < 980;
 
-    return PortfolioContentFrame(
-      child: Padding(
-        padding: const EdgeInsets.only(top: 10, bottom: 8),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(999),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.violet.withValues(alpha: dark ? .08 : .05),
-                blurRadius: 28,
-                spreadRadius: -4,
-              ),
-            ],
+    return Padding(
+      padding: const EdgeInsets.only(top: 10, bottom: 8),
+      child: PortfolioContentFrame(
+        child: LiquidGlassFoundation(
+          height: 64,
+          borderRadius: 999,
+          blur: 24,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: dark
+                ? [
+                    Colors.white.withValues(alpha: .12),
+                    Colors.white.withValues(alpha: .03),
+                  ]
+                : [
+                    Colors.white.withValues(alpha: .72),
+                    Colors.white.withValues(alpha: .30),
+                  ],
           ),
-          child: LiquidGlassFoundation(
-            height: 64,
-            borderRadius: 999,
-            blur: 24,
-            borderColor: dark ? AppColors.borderStrong : const Color(0x1A111118),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: dark
-                  ? [
-                      Colors.white.withValues(alpha: .075),
-                      Colors.white.withValues(alpha: .025),
-                    ]
-                  : [
-                      Colors.white.withValues(alpha: .82),
-                      Colors.white.withValues(alpha: .62),
-                    ],
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(
-                    flex: compact ? 1 : 3,
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: _Brand(
-                        prefix: settings.brandPrefix,
-                        name: settings.name,
-                        onTap: () => onSectionSelected('hero'),
-                      ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: _Brand(
+                    prefix: settings.brandPrefix,
+                    name: settings.name,
+                    onTap: () => onSectionSelected('hero'),
+                  ),
+                ),
+                if (!compact)
+                  Center(
+                    child: _DesktopNavLinks(
+                      settings: settings,
+                      onSectionSelected: onSectionSelected,
                     ),
                   ),
-                  if (!compact)
-                    Expanded(
-                      flex: 5,
-                      child: Center(
-                        child: _DesktopNavLinks(
-                          settings: settings,
-                          onSectionSelected: onSectionSelected,
-                        ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      LiquidGlassIconAction(
+                        tooltip: dark
+                            ? 'Switch to light mode'
+                            : 'Switch to dark mode',
+                        onPressed: () {
+                          ref.read(themeModeProvider.notifier).state = dark
+                              ? ThemeMode.light
+                              : ThemeMode.dark;
+                        },
+                        icon: dark
+                            ? Icons.light_mode_rounded
+                            : Icons.dark_mode_rounded,
                       ),
-                    ),
-                  Expanded(
-                    flex: compact ? 1 : 3,
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          _NavbarLanguagePill(
-                            label: 'EN',
-                            onPressed: () {},
+                      if (compact) ...[
+                        const SizedBox(width: 8),
+                        LiquidGlassIconAction(
+                          tooltip: 'Open navigation',
+                          onPressed: () => _showMobileMenu(
+                            context,
+                            settings,
+                            onSectionSelected,
+                            onContactSelected,
                           ),
-                          const SizedBox(width: 8),
-                          _ThemeToggle(dark: dark, ref: ref),
-                          if (compact) ...[
-                            const SizedBox(width: 8),
-                            LiquidGlassIconAction(
-                              tooltip: 'Open navigation',
-                              size: 40,
-                              onPressed: () => _showMobileMenu(
-                                context,
-                                settings,
-                                onSectionSelected,
-                                onContactSelected,
-                              ),
-                              icon: Icons.menu_rounded,
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
+                          icon: Icons.menu_rounded,
+                        ),
+                      ],
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
@@ -133,26 +117,17 @@ class AppNavbar extends ConsumerWidget {
       context: context,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withValues(alpha: .66),
+      barrierColor: Colors.black54,
       builder: (context) {
         return Padding(
           padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
           child: LiquidGlassFoundation(
             borderRadius: 28,
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(16),
             blur: 24,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 42,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: .18),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
                 if (settings.showAbout)
                   _SheetLink(settings.navAboutLabel, () {
                     Navigator.pop(context);
@@ -204,25 +179,20 @@ class _Brand extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(15),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 4),
+        padding: const EdgeInsets.symmetric(vertical: 5),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                gradient: AppColors.gradient,
-                borderRadius: BorderRadius.circular(11),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.violet.withValues(alpha: .25),
-                    blurRadius: 14,
-                  ),
-                ],
+            const LiquidGlassFoundation(
+              width: 28,
+              height: 28,
+              borderRadius: 12,
+              padding: EdgeInsets.zero,
+              gradient: LinearGradient(
+                colors: [AppColors.primary, AppColors.secondary],
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.flutter_dash_rounded,
                 size: 17,
                 color: Colors.white,
@@ -230,14 +200,18 @@ class _Brand extends StatelessWidget {
             ),
             const SizedBox(width: 9),
             ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 230),
+              constraints: const BoxConstraints(maxWidth: 240),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   if (prefix.trim().isNotEmpty) ...[
-                    _GradientText(
+                    Text(
                       prefix.trim(),
-                      style: theme.textTheme.labelLarge!.copyWith(
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: theme.colorScheme.primary,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -259,22 +233,6 @@ class _Brand extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _GradientText extends StatelessWidget {
-  const _GradientText(this.text, {required this.style});
-
-  final String text;
-  final TextStyle style;
-
-  @override
-  Widget build(BuildContext context) {
-    return ShaderMask(
-      shaderCallback: (bounds) => AppColors.gradient.createShader(bounds),
-      blendMode: BlendMode.srcIn,
-      child: Text(text, style: style),
     );
   }
 }
@@ -307,9 +265,12 @@ class _DesktopNavLinks extends StatelessWidget {
           onTap: () => onSectionSelected('services'),
         ),
       if (settings.showContact)
-        _NavbarCtaButton(
-          label: settings.navCtaLabel,
-          onPressed: () => onSectionSelected('contact'),
+        Padding(
+          padding: const EdgeInsets.only(left: 6),
+          child: _NavbarCtaButton(
+            label: settings.navCtaLabel,
+            onPressed: () => onSectionSelected('contact'),
+          ),
         ),
     ];
 
@@ -318,71 +279,10 @@ class _DesktopNavLinks extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         for (var i = 0; i < links.length; i++) ...[
-          if (i > 0) const SizedBox(width: 6),
+          if (i > 0) const SizedBox(width: 4),
           links[i],
         ],
       ],
-    );
-  }
-}
-
-class _NavbarLanguagePill extends StatelessWidget {
-  const _NavbarLanguagePill({required this.label, required this.onPressed});
-
-  final String label;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(999),
-        child: Container(
-          height: 40,
-          padding: const EdgeInsets.symmetric(horizontal: 13),
-          decoration: BoxDecoration(
-            color: color.onSurface.withValues(alpha: .035),
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: color.onSurface.withValues(alpha: .08)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.language_rounded, size: 17),
-              const SizedBox(width: 7),
-              Text(
-                label,
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ThemeToggle extends StatelessWidget {
-  const _ThemeToggle({required this.dark, required this.ref});
-
-  final bool dark;
-  final WidgetRef ref;
-
-  @override
-  Widget build(BuildContext context) {
-    return LiquidGlassIconAction(
-      tooltip: dark ? 'Switch to light mode' : 'Switch to dark mode',
-      size: 40,
-      onPressed: () {
-        ref.read(themeModeProvider.notifier).state =
-            dark ? ThemeMode.light : ThemeMode.dark;
-      },
-      icon: dark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
     );
   }
 }
@@ -395,15 +295,35 @@ class _NavbarCtaButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+
+    // Keep the original glass CTA in dark mode. In light mode, use a
+    // deliberate high-contrast surface so the label can never disappear
+    // against the translucent white navbar.
+    if (dark) {
+      return LiquidGlassActionButton(
+        onPressed: onPressed,
+        borderRadius: 15,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+          child: Text(label),
+        ),
+      );
+    }
+
     return DecoratedBox(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(999),
-        gradient: AppColors.gradient,
+        borderRadius: BorderRadius.circular(15),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.primary, AppColors.primaryDeep],
+        ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.violet.withValues(alpha: .24),
-            blurRadius: 18,
-            offset: const Offset(0, 7),
+            color: AppColors.primary.withValues(alpha: .24),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -411,17 +331,17 @@ class _NavbarCtaButton extends StatelessWidget {
         type: MaterialType.transparency,
         child: InkWell(
           onTap: onPressed,
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: BorderRadius.circular(15),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             child: Text(
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                  ),
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
         ),
@@ -446,23 +366,19 @@ class _NavLinkState extends State<_NavLink> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: TextButton(
-        onPressed: widget.onTap,
-        style: TextButton.styleFrom(
-          foregroundColor: _hovered
-              ? theme.colorScheme.onSurface
-              : theme.colorScheme.onSurfaceVariant,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-        ),
-        child: Text(
-          widget.label,
-          style: theme.textTheme.labelLarge?.copyWith(
-            fontWeight: FontWeight.w600,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        child: TextButton(
+          onPressed: widget.onTap,
+          style: TextButton.styleFrom(
+            foregroundColor: _hovered
+                ? theme.colorScheme.primary
+                : theme.colorScheme.onSurfaceVariant,
           ),
+          child: Text(widget.label),
         ),
       ),
     );
@@ -478,7 +394,9 @@ class _SheetLink extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+      ),
       title: Text(label),
       onTap: onTap,
     );

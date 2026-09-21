@@ -18,7 +18,7 @@ final authStateProvider = StreamProvider<User?>((ref) {
   return FirebaseAuth.instance.authStateChanges();
 });
 
-final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.dark);
+final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.light);
 
 final siteSettingsProvider = StreamProvider<SiteSettings>((ref) {
   return ref.watch(firebaseServiceProvider).watchSettings();
