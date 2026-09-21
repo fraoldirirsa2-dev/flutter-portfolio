@@ -546,12 +546,31 @@ class _HorizontalGlassRailState extends State<HorizontalGlassRail> {
     return MediaQuery.disableAnimationsOf(context);
   }
 
+  ScrollPosition? get _safePosition {
+    if (!_controller.hasClients) {
+      return null;
+    }
+
+    final position = _controller.position;
+    if (!position.hasPixels || !position.hasContentDimensions) {
+      return null;
+    }
+
+    return position;
+  }
+
+  bool get _hasScrollableDimensions => _safePosition != null;
+
+  double get _maxScrollExtent => _safePosition?.maxScrollExtent ?? 0;
+
+  double get _currentScrollOffset => _safePosition?.pixels ?? 0;
+
   bool get _shouldAutoScroll {
     if (!widget.autoScroll || _animationsDisabled) {
       return false;
     }
 
-    if (!_controller.hasClients || _controller.position.maxScrollExtent <= 0) {
+    if (!_hasScrollableDimensions || _maxScrollExtent <= 0) {
       return false;
     }
 
@@ -593,7 +612,12 @@ class _HorizontalGlassRailState extends State<HorizontalGlassRail> {
       _measureLoop();
     }
 
-    if (!_controller.hasClients || _loopExtent <= 0) {
+    if (!_hasScrollableDimensions || _loopExtent <= 0) {
+      return;
+    }
+
+    final maxScrollExtent = _maxScrollExtent;
+    if (maxScrollExtent <= 0) {
       return;
     }
 
@@ -603,18 +627,23 @@ class _HorizontalGlassRailState extends State<HorizontalGlassRail> {
     );
     final pixelsPerSecond = _loopExtent / (durationMs / 1000);
     final delta = pixelsPerSecond * (16 / 1000);
-    final next = _controller.offset + delta;
+    final position = _safePosition;
+    if (position == null) {
+      return;
+    }
+
+    final next = position.pixels + delta;
 
     if (next >= _loopExtent) {
       final wrapped = next - _loopExtent;
       _controller.jumpTo(
-        wrapped.clamp(0.0, _controller.position.maxScrollExtent).toDouble(),
+        wrapped.clamp(0.0, maxScrollExtent).toDouble(),
       );
       return;
     }
 
     _controller.jumpTo(
-      next.clamp(0.0, _controller.position.maxScrollExtent).toDouble(),
+      next.clamp(0.0, maxScrollExtent).toDouble(),
     );
   }
 
@@ -645,7 +674,7 @@ class _HorizontalGlassRailState extends State<HorizontalGlassRail> {
   }
 
   Future<void> _scrollNext() async {
-    if (!_controller.hasClients) {
+    if (!_hasScrollableDimensions) {
       return;
     }
 
@@ -655,8 +684,19 @@ class _HorizontalGlassRailState extends State<HorizontalGlassRail> {
       _measureLoop();
     }
 
-    final max = _controller.position.maxScrollExtent;
-    final target = (_controller.offset + 300).clamp(0.0, max).toDouble();
+    final max = _maxScrollExtent;
+    if (max <= 0) {
+      _resumeAfterInteraction();
+      return;
+    }
+
+    final position = _safePosition;
+    if (position == null) {
+      _resumeAfterInteraction();
+      return;
+    }
+
+    final target = (position.pixels + 300).clamp(0.0, max).toDouble();
 
     await _controller.animateTo(
       target,
@@ -789,9 +829,8 @@ class _HorizontalGlassRailState extends State<HorizontalGlassRail> {
                 child: AnimatedBuilder(
                   animation: _controller,
                   builder: (context, child) {
-                    final canScroll = _controller.hasClients &&
-                        _controller.offset <
-                            _controller.position.maxScrollExtent - 4;
+                    final canScroll = _hasScrollableDimensions &&
+                        _currentScrollOffset < _maxScrollExtent - 4;
                     return AnimatedOpacity(
                       opacity: canScroll ? 1 : .38,
                       duration: const Duration(milliseconds: 180),

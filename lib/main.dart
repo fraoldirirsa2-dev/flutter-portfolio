@@ -12,9 +12,13 @@ import 'widgets/app_scroll_behavior.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   usePathUrlStrategy();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
-  debugPrint('Firebase project: ${Firebase.app().options.projectId}');
+  debugPrint(
+    'Firebase project: ${Firebase.app().options.projectId}',
+  );
 
   runApp(const ProviderScope(child: PortfolioApp()));
 }
@@ -34,7 +38,7 @@ class _PortfolioAppState extends ConsumerState<PortfolioApp> {
     final themeMode = ref.watch(themeModeProvider);
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
-      title: 'Fraol Dirirsa Flutter Developer Portfolio',
+      title: 'Junior Flutter Developer Portfolio',
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       themeMode: themeMode,

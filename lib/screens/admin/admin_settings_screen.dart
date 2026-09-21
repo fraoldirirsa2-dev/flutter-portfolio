@@ -128,11 +128,14 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
       'availabilityOpenLabel': settings.availabilityOpenLabel,
       'availabilityFocusedValue': settings.availabilityFocusedValue,
       'availabilityFocusedLabel': settings.availabilityFocusedLabel,
+      'qualityStatValue': settings.qualityStatValue,
+      'qualityStatLabel': settings.qualityStatLabel,
       'cvUrl': settings.cvUrl,
       'profilePhotoUrl': settings.profilePhotoUrl,
       'email': settings.email,
       'phone': settings.phone,
       'location': settings.location,
+      'contractPreference': settings.contractPreference,
       'techStackScrollSeconds': '${settings.techStackScrollSeconds}',
       'seoTitle': settings.seoTitle,
       'seoDescription': settings.seoDescription,
@@ -233,12 +236,15 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
       availabilityOpenLabel: _text('availabilityOpenLabel'),
       availabilityFocusedValue: _text('availabilityFocusedValue'),
       availabilityFocusedLabel: _text('availabilityFocusedLabel'),
+      qualityStatValue: _text('qualityStatValue'),
+      qualityStatLabel: _text('qualityStatLabel'),
       availableForHire: _availableForHire,
       cvUrl: _text('cvUrl'),
       profilePhotoUrl: _text('profilePhotoUrl'),
       email: _text('email'),
       phone: _text('phone'),
       location: _text('location'),
+      contractPreference: _text('contractPreference'),
       socials: {
         for (final entry in _socials.entries)
           entry.key: entry.value.text.trim(),
@@ -672,6 +678,12 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
                             'Availability focused label',
                           ),
                         ),
+                        const SizedBox(height: 12),
+                        _pair(
+                          context,
+                          _field('qualityStatValue', 'Fourth stat value'),
+                          _field('qualityStatLabel', 'Fourth stat label'),
+                        ),
                         const SizedBox(height: 8),
                         SwitchListTile.adaptive(
                           contentPadding: EdgeInsets.zero,
@@ -900,6 +912,11 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
                         ),
                         const SizedBox(height: 12),
                         _field('location', 'Location', required: true),
+                        _field(
+                          'contractPreference',
+                          'Contract preference',
+                          required: true,
+                        ),
                         const SizedBox(height: 18),
                         for (final entry in _socials.entries) ...[
                           TextFormField(

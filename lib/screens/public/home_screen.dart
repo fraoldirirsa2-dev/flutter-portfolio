@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -62,7 +64,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return;
     }
 
-    if (!_scrollController.hasClients) {
+    if (!_scrollController.hasClients ||
+        !_scrollController.position.hasContentDimensions) {
       await Scrollable.ensureVisible(
         targetContext,
         duration: const Duration(milliseconds: 720),
@@ -90,7 +93,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         headerHeight -
         14.0;
 
-    final maxOffset = _scrollController.position.maxScrollExtent;
+    final position = _scrollController.position;
+    if (!position.hasContentDimensions) return;
+    final maxOffset = position.maxScrollExtent;
     final clampedOffset = desiredOffset.clamp(0.0, maxOffset).toDouble();
 
     await _scrollController.animateTo(
@@ -177,6 +182,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return Scaffold(
       body: Stack(
         children: [
+          const Positioned.fill(child: _GlobalPageBackdrop()),
           if (settingsUnavailable)
             Positioned(
               top: MediaQuery.paddingOf(context).top + 8,
@@ -377,7 +383,10 @@ class _ScrollTopButton extends StatelessWidget {
     return AnimatedBuilder(
       animation: controller,
       builder: (context, child) {
-        final visible = controller.hasClients && controller.offset > 520;
+        final visible =
+            controller.hasClients &&
+            controller.position.hasContentDimensions &&
+            controller.offset > 520;
         return AnimatedScale(
           scale: visible ? 1 : .7,
           duration: const Duration(milliseconds: 220),
@@ -416,11 +425,12 @@ class _ScrollProgress extends StatelessWidget {
     return AnimatedBuilder(
       animation: controller,
       builder: (context, child) {
-        final position = controller.hasClients ? controller.position : null;
+        final hasDimensions =
+            controller.hasClients && controller.position.hasContentDimensions;
+        final position = hasDimensions ? controller.position : null;
         final max = position?.maxScrollExtent ?? 0;
-        final progress = max <= 0
-            ? 0.0
-            : (controller.offset / max).clamp(0.0, 1.0);
+        final offset = position?.pixels ?? 0;
+        final progress = max <= 0 ? 0.0 : (offset / max).clamp(0.0, 1.0);
         final colors = Theme.of(context).colorScheme;
 
         return ClipRRect(
@@ -466,143 +476,709 @@ class _HeroSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
     final mobile = Responsive.isMobile(context);
+    final tags =
+        (settings.skills.isNotEmpty ? settings.skills : settings.coreStack)
+            .take(mobile ? 4 : 6)
+            .toList();
 
     return Stack(
       children: [
         const Positioned.fill(child: _HeroBackdrop()),
-        Padding(
-          padding: EdgeInsets.fromLTRB(
-            Responsive.horizontalPadding(context),
-            mobile ? 34 : 60,
-            Responsive.horizontalPadding(context),
-            mobile ? 68 : 96,
-          ),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1240),
-              child: Column(
-                children: [
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final compact = constraints.maxWidth < 900;
-                      final intro = Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _AvailabilityBadge(
-                            visible: settings.availableForHire,
-                            label: settings.heroAvailabilityLabel,
-                          ),
-                          const SizedBox(height: 18),
-                          Text(
-                            settings.name.isEmpty
-                                ? 'Flutter Developer'
-                                : settings.name,
-                            style: theme.textTheme.labelLarge?.copyWith(
-                              color: colors.onSurfaceVariant,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: .4,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            settings.role,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: colors.primary,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          _GradientHeadline(
-                            text: settings.heroTitle,
-                            mobile: mobile,
-                          ),
-                          const SizedBox(height: 20),
-                          ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 690),
-                            child: Text(
-                              settings.heroSubtitle,
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                color: colors.onSurfaceVariant,
-                                height: 1.65,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 28),
-                          Wrap(
-                            spacing: 12,
-                            runSpacing: 12,
-                            children: [
-                              FilledButton.icon(
-                                onPressed: onContact,
-                                icon: const Icon(Icons.arrow_outward_rounded),
-                                label: Text(settings.heroPrimaryCta),
-                              ),
-                              OutlinedButton.icon(
-                                onPressed: onProjects,
-                                icon: const Icon(Icons.grid_view_rounded),
-                                label: Text(settings.heroSecondaryCta),
-                              ),
-                              if (settings.cvUrl.isNotEmpty)
-                                TextButton.icon(
-                                  onPressed: () => _openUrl(settings.cvUrl),
-                                  icon: const Icon(Icons.download_rounded),
-                                  label: Text(settings.heroCvLabel),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 34),
-                          _TrustLine(settings: settings),
-                        ],
-                      );
-
-                      final visual = FloatMotion(
-                        distance: 10,
-                        duration: const Duration(milliseconds: 3600),
-                        child: _HeroVisual(settings: settings),
-                      );
-
-                      if (compact) {
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            intro,
-                            const SizedBox(height: 42),
-                            Center(child: visual),
-                          ],
-                        );
-                      }
-
-                      return Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Expanded(flex: 6, child: intro),
-                          const SizedBox(width: 52),
-                          Expanded(flex: 4, child: Center(child: visual)),
-                        ],
-                      );
-                    },
+        PortfolioContentFrame(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              0,
+              mobile ? 46 : 64,
+              0,
+              mobile ? 68 : 86,
+            ),
+            child: Column(
+              children: [
+                if (settings.availableForHire)
+                  _AvailabilityBadge(
+                    visible: true,
+                    label: settings.heroAvailabilityLabel,
                   ),
-                  const SizedBox(height: 54),
-                  _StatsBento(settings: settings),
-                ],
-              ),
+                SizedBox(height: mobile ? 22 : 28),
+                Builder(
+                  builder: (context) {
+                    final wide = MediaQuery.sizeOf(context).width >= 920;
+                    final copy = _HeroCopy(
+                      settings: settings,
+                      tags: tags,
+                      mobile: mobile,
+                      onContact: onContact,
+                      onProjects: onProjects,
+                    );
+
+                    if (!wide) {
+                      return Column(
+                        children: [
+                          copy,
+                          const SizedBox(height: 34),
+                          _HeroVisual(settings: settings),
+                        ],
+                      );
+                    }
+
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(flex: 11, child: copy),
+                        const SizedBox(width: 46),
+                        Expanded(
+                          flex: 9,
+                          child: _HeroVisual(settings: settings),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+                const SizedBox(height: 42),
+                _StatsBento(settings: settings),
+              ],
             ),
           ),
         ),
       ],
     );
   }
+}
 
-  static Future<void> _openUrl(String value) async {
-    final uri = resolvePortfolioUrl(value);
-    if (uri != null) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
+class _HeroCopy extends StatelessWidget {
+  const _HeroCopy({
+    required this.settings,
+    required this.tags,
+    required this.mobile,
+    required this.onContact,
+    required this.onProjects,
+  });
+
+  final SiteSettings settings;
+  final List<String> tags;
+  final bool mobile;
+  final VoidCallback onContact;
+  final VoidCallback onProjects;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    return Column(
+      crossAxisAlignment: mobile
+          ? CrossAxisAlignment.center
+          : CrossAxisAlignment.start,
+      children: [
+        Text(
+          settings.name.isEmpty ? 'Flutter Developer' : settings.name,
+          textAlign: mobile ? TextAlign.center : TextAlign.left,
+          style: theme.textTheme.labelLarge?.copyWith(
+            color: colors.onSurfaceVariant,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.1,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            gradient: AppColors.gradient,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            settings.role,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        _GradientHeadline(text: settings.heroTitle, mobile: mobile),
+        const SizedBox(height: 20),
+        ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: mobile ? 680 : 650),
+          child: Text(
+            settings.heroSubtitle,
+            textAlign: mobile ? TextAlign.center : TextAlign.left,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: colors.onSurfaceVariant,
+              height: 1.78,
+            ),
+          ),
+        ),
+        const SizedBox(height: 28),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          alignment: mobile ? WrapAlignment.center : WrapAlignment.start,
+          children: [
+            _GradientHeroButton(
+              label: settings.heroSecondaryCta.isEmpty
+                  ? 'View my work'
+                  : settings.heroSecondaryCta,
+              icon: Icons.arrow_forward_rounded,
+              onPressed: onProjects,
+            ),
+            _OutlineHeroButton(
+              label: settings.cvUrl.isNotEmpty
+                  ? settings.heroCvLabel
+                  : (settings.heroPrimaryCta.isEmpty
+                        ? 'Let’s talk'
+                        : settings.heroPrimaryCta),
+              icon: settings.cvUrl.isNotEmpty
+                  ? Icons.download_rounded
+                  : Icons.chat_bubble_outline_rounded,
+              onPressed: () async {
+                if (settings.cvUrl.isNotEmpty) {
+                  final uri = resolvePortfolioUrl(settings.cvUrl);
+                  if (uri != null) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  }
+                } else {
+                  onContact();
+                }
+              },
+            ),
+          ],
+        ),
+        if (tags.isNotEmpty) ...[
+          const SizedBox(height: 26),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            alignment: mobile ? WrapAlignment.center : WrapAlignment.start,
+            children: [
+              for (final tag in tags)
+                _HeroTag(label: tag, icon: ContentIcon.forTechnology(tag)),
+            ],
+          ),
+        ],
+        if (settings.heroTrustItems.isNotEmpty) ...[
+          const SizedBox(height: 22),
+          Wrap(
+            spacing: 14,
+            runSpacing: 10,
+            alignment: mobile ? WrapAlignment.center : WrapAlignment.start,
+            children: [
+              for (final item in settings.heroTrustItems)
+                _TrustItem(text: item),
+            ],
+          ),
+        ],
+      ],
+    );
   }
+}
+
+class _GradientHeroButton extends StatefulWidget {
+  const _GradientHeroButton({
+    required this.label,
+    required this.icon,
+    required this.onPressed,
+  });
+  final String label;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  State<_GradientHeroButton> createState() => _GradientHeroButtonState();
+}
+
+class _GradientHeroButtonState extends State<_GradientHeroButton> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: AnimatedScale(
+        scale: _hovered ? 1.03 : 1,
+        duration: const Duration(milliseconds: 180),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: AppColors.gradient,
+            borderRadius: BorderRadius.circular(999),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.violet.withValues(alpha: _hovered ? .34 : .20),
+                blurRadius: _hovered ? 28 : 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: widget.onPressed,
+              borderRadius: BorderRadius.circular(999),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 14,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      widget.label,
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(widget.icon, size: 18, color: Colors.white),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OutlineHeroButton extends StatefulWidget {
+  const _OutlineHeroButton({
+    required this.label,
+    required this.icon,
+    required this.onPressed,
+  });
+  final String label;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  State<_OutlineHeroButton> createState() => _OutlineHeroButtonState();
+}
+
+class _OutlineHeroButtonState extends State<_OutlineHeroButton> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        decoration: BoxDecoration(
+          color: _hovered
+              ? colors.onSurface.withValues(alpha: .06)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: _hovered
+                ? AppColors.cyan.withValues(alpha: .55)
+                : AppColors.borderStrong,
+          ),
+        ),
+        child: InkWell(
+          onTap: widget.onPressed,
+          borderRadius: BorderRadius.circular(999),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(widget.icon, size: 18, color: colors.onSurface),
+                const SizedBox(width: 8),
+                Text(
+                  widget.label,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w800),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroVisual extends StatefulWidget {
+  const _HeroVisual({required this.settings});
+
+  final SiteSettings settings;
+
+  @override
+  State<_HeroVisual> createState() => _HeroVisualState();
+}
+
+class _HeroVisualState extends State<_HeroVisual> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    final settings = widget.settings;
+    final width = MediaQuery.sizeOf(context).width;
+    final compact = width < 920;
+    final height = compact ? 360.0 : 460.0;
+    final stack = settings.coreStack.take(3).toList();
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: AnimatedScale(
+        scale: _hovered ? 1.015 : 1,
+        duration: const Duration(milliseconds: 220),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned(
+              top: 22,
+              left: 18,
+              right: 6,
+              bottom: 8,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(30),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppColors.violet.withValues(alpha: .28),
+                      AppColors.cyan.withValues(alpha: .12),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(
+              width: double.infinity,
+              height: height,
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: .10),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.violet.withValues(
+                        alpha: _hovered ? .20 : .12,
+                      ),
+                      blurRadius: 60,
+                      spreadRadius: -10,
+                    ),
+                  ],
+                ),
+                child: LiquidGlassFoundation(
+                  borderRadius: 24,
+                  padding: const EdgeInsets.all(12),
+                  blur: 24,
+                  color: dark
+                      ? Colors.black.withValues(alpha: .28)
+                      : Colors.white.withValues(alpha: .70),
+                  borderColor: Colors.white.withValues(alpha: .10),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.white.withValues(alpha: dark ? .09 : .38),
+                      Colors.white.withValues(alpha: dark ? .025 : .10),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      _WorkspaceHeader(settings: settings),
+                      const SizedBox(height: 12),
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: Stack(
+                            children: [
+                              Positioned.fill(
+                                child: settings.profilePhotoUrl.isEmpty
+                                    ? DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                            colors: [
+                                              AppColors.violet.withValues(
+                                                alpha: .20,
+                                              ),
+                                              AppColors.cyan.withValues(
+                                                alpha: .10,
+                                              ),
+                                              theme.colorScheme.surface,
+                                            ],
+                                          ),
+                                        ),
+                                        child: const Center(
+                                          child: Icon(
+                                            Icons.code_rounded,
+                                            size: 90,
+                                            color: AppColors.cyan,
+                                          ),
+                                        ),
+                                      )
+                                    : PortfolioImage(
+                                        source: settings.profilePhotoUrl,
+                                        fit: BoxFit.cover,
+                                        width: double.infinity,
+                                        errorBuilder: (context, error) =>
+                                            DecoratedBox(
+                                              decoration: BoxDecoration(
+                                                color:
+                                                    theme.colorScheme.surface,
+                                              ),
+                                              child: const Center(
+                                                child: Icon(
+                                                  Icons.code_rounded,
+                                                  size: 90,
+                                                  color: AppColors.cyan,
+                                                ),
+                                              ),
+                                            ),
+                                      ),
+                              ),
+                              Positioned.fill(
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [
+                                        Colors.transparent,
+                                        Colors.black.withValues(alpha: .62),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                left: 18,
+                                right: 18,
+                                bottom: 18,
+                                child: _WorkspaceOverlay(
+                                  settings: settings,
+                                  stack: stack,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _CodeStrip(settings: settings),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 26,
+              left: -14,
+              child: FloatMotion(
+                distance: 7,
+                duration: const Duration(milliseconds: 2800),
+                rotate: .012,
+                child: _FloatingPill(
+                  icon: ContentIcon.fromName(settings.heroPillOneIconName),
+                  label: settings.heroPillOneLabel,
+                ),
+              ),
+            ),
+            Positioned(
+              right: -18,
+              bottom: 78,
+              child: FloatMotion(
+                distance: 8,
+                duration: const Duration(milliseconds: 3200),
+                delay: const Duration(milliseconds: 180),
+                rotate: -.01,
+                child: _FloatingPill(
+                  icon: ContentIcon.fromName(settings.heroPillTwoIconName),
+                  label: settings.heroPillTwoLabel,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceHeader extends StatelessWidget {
+  const _WorkspaceHeader({required this.settings});
+  final SiteSettings settings;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            gradient: AppColors.gradient,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: const Icon(
+            Icons.flutter_dash_rounded,
+            size: 18,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                settings.name.isEmpty ? 'Flutter Portfolio' : settings.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              Text(
+                settings.role,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const _WindowDot(color: AppColors.green),
+      ],
+    );
+  }
+}
+
+class _WindowDot extends StatelessWidget {
+  const _WindowDot({required this.color});
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 9,
+    height: 9,
+    decoration: BoxDecoration(
+      color: color,
+      shape: BoxShape.circle,
+      boxShadow: [
+        BoxShadow(color: color.withValues(alpha: .35), blurRadius: 10),
+      ],
+    ),
+  );
+}
+
+class _WorkspaceOverlay extends StatelessWidget {
+  const _WorkspaceOverlay({required this.settings, required this.stack});
+  final SiteSettings settings;
+  final List<String> stack;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: .42),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: .10)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  color: AppColors.green,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                settings.availableForHire
+                    ? settings.heroAvailabilityLabel
+                    : settings.availabilityFocusedValue,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            settings.heroTitle,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.titleLarge?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              height: 1.15,
+            ),
+          ),
+          if (stack.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 7,
+              runSpacing: 7,
+              children: [
+                for (final item in stack) _MiniTechnologyChip(label: item),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniTechnologyChip extends StatelessWidget {
+  const _MiniTechnologyChip({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+    decoration: BoxDecoration(
+      color: Colors.white.withValues(alpha: .07),
+      borderRadius: BorderRadius.circular(999),
+      border: Border.all(color: Colors.white.withValues(alpha: .08)),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(ContentIcon.forTechnology(label), size: 13, color: AppColors.cyan),
+        const SizedBox(width: 5),
+        Text(
+          label,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _AvailabilityBadge extends StatelessWidget {
@@ -615,271 +1191,83 @@ class _AvailabilityBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!visible) return const SizedBox.shrink();
 
-    final theme = Theme.of(context);
-    return PulseMotion(
-      minScale: .99,
-      maxScale: 1.025,
-      duration: const Duration(milliseconds: 2000),
-      child: LiquidGlassFoundation(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        borderRadius: 999,
-        blur: 18,
-        borderColor: AppColors.secondary.withValues(alpha: .45),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 8,
-              height: 8,
-              decoration: const BoxDecoration(
-                color: AppColors.secondary,
-                shape: BoxShape.circle,
-              ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface.withValues(alpha: .92),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: .10)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.green.withValues(alpha: .08),
+            blurRadius: 20,
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: const BoxDecoration(
+              color: AppColors.green,
+              shape: BoxShape.circle,
             ),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: theme.textTheme.labelLarge?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 9),
+          Text(
+            label,
+            style: Theme.of(
+              context,
+            ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _GradientHeadline extends StatefulWidget {
+class _GradientHeadline extends StatelessWidget {
   const _GradientHeadline({required this.text, required this.mobile});
-
   final String text;
   final bool mobile;
-
-  @override
-  State<_GradientHeadline> createState() => _GradientHeadlineState();
-}
-
-class _GradientHeadlineState extends State<_GradientHeadline>
-    with SingleTickerProviderStateMixin {
-  bool _started = false;
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 4200),
-  );
-
-  @override
-  void initState() {
-    super.initState();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_started || MediaQuery.disableAnimationsOf(context)) return;
-
-    _started = true;
-    _controller.repeat();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final style =
-        (widget.mobile
-                ? theme.textTheme.displayMedium
-                : theme.textTheme.displayLarge)
-            ?.copyWith(fontWeight: FontWeight.w800);
-
-    if (MediaQuery.disableAnimationsOf(context)) {
-      return _buildText(theme, style, 0.5);
+        (mobile ? theme.textTheme.displayMedium : theme.textTheme.displayLarge)
+            ?.copyWith(
+              fontWeight: FontWeight.w900,
+              height: .98,
+              letterSpacing: -2.0,
+              color: theme.colorScheme.onSurface,
+            );
+    final words = text
+        .split(RegExp(r'\s+'))
+        .where((word) => word.trim().isNotEmpty)
+        .toList();
+    if (words.length <= 2) {
+      return Text(text, textAlign: TextAlign.center, style: style);
     }
-
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, _) {
-        return _buildText(theme, style, _controller.value);
-      },
-    );
-  }
-
-  Widget _buildText(ThemeData theme, TextStyle? style, double value) {
-    final dark = theme.brightness == Brightness.dark;
-    final sweep = -1.3 + (value * 2.6);
-
-    return Semantics(
-      header: true,
-      child: ShaderMask(
-        blendMode: BlendMode.srcIn,
-        shaderCallback: (bounds) {
-          return LinearGradient(
-            begin: Alignment(sweep - 1.0, -1),
-            end: Alignment(sweep + 1.0, 1),
-            colors: dark
-                ? const [
-                    Colors.white,
-                    Color(0xFFD8D3FF),
-                    AppColors.primary,
-                    Colors.white,
-                  ]
-                : const [
-                    AppColors.ink,
-                    AppColors.primaryDeep,
-                    AppColors.primary,
-                    AppColors.ink,
-                  ],
-            stops: const [0.0, 0.40, 0.70, 1.0],
-          ).createShader(bounds);
-        },
-        child: Text(widget.text, style: style),
-      ),
-    );
-  }
-}
-
-class _HeroVisual extends StatelessWidget {
-  const _HeroVisual({required this.settings});
-
-  final SiteSettings settings;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
-    final dark = theme.brightness == Brightness.dark;
-
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 430),
-      child: AspectRatio(
-        aspectRatio: .88,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Positioned.fill(
-              top: 18,
-              right: 10,
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(36),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      colors.primary.withValues(alpha: .16),
-                      colors.secondary.withValues(alpha: .12),
-                    ],
-                  ),
-                  border: Border.all(
-                    color: colors.primary.withValues(alpha: .22),
-                  ),
+    final normalCount = words.length - 2;
+    return RichText(
+      textAlign: mobile ? TextAlign.center : TextAlign.left,
+      text: TextSpan(
+        style: style,
+        children: [
+          TextSpan(text: '${words.take(normalCount).join(' ')} '),
+          TextSpan(
+            text: words.skip(normalCount).join(' '),
+            style: style?.copyWith(
+              foreground: Paint()
+                ..shader = AppColors.gradient.createShader(
+                  const Rect.fromLTWH(0, 0, 520, 120),
                 ),
-              ),
             ),
-            Positioned(
-              left: 12,
-              right: 0,
-              top: 0,
-              bottom: 18,
-              child: LiquidGlassFoundation(
-                borderRadius: 34,
-                padding: const EdgeInsets.all(14),
-                blur: 24,
-                color: dark
-                    ? Colors.black.withValues(alpha: .18)
-                    : Colors.white.withValues(alpha: .30),
-                borderColor: colors.outlineVariant.withValues(alpha: .55),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: dark ? .16 : .08),
-                    blurRadius: 50,
-                    offset: const Offset(0, 24),
-                  ),
-                ],
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Colors.white.withValues(alpha: dark ? .10 : .36),
-                    Colors.white.withValues(alpha: .03),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(27),
-                        child: settings.profilePhotoUrl.isEmpty
-                            ? Container(
-                                color: colors.surfaceContainerHighest,
-                                child: Center(
-                                  child: Icon(
-                                    Icons.person_rounded,
-                                    size: 118,
-                                    color: colors.primary.withValues(alpha: .8),
-                                  ),
-                                ),
-                              )
-                            : PortfolioImage(
-                                source: settings.profilePhotoUrl,
-                                fit: BoxFit.cover,
-                                width: double.infinity,
-                                errorBuilder: (context, error) {
-                                  return Container(
-                                    color: colors.surfaceContainerHighest,
-                                    alignment: Alignment.center,
-                                    child: Icon(
-                                      Icons.person_rounded,
-                                      size: 118,
-                                      color: colors.primary.withValues(
-                                        alpha: .8,
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _CodeStrip(settings: settings),
-                  ],
-                ),
-              ),
-            ),
-            Positioned(
-              top: 28,
-              left: 28,
-              child: FloatMotion(
-                distance: 6,
-                duration: const Duration(milliseconds: 2800),
-                rotate: .012,
-                child: _FloatingPill(
-                  icon: ContentIcon.fromName(settings.heroPillOneIconName),
-                  label: settings.heroPillOneLabel,
-                ),
-              ),
-            ),
-            Positioned(
-              right: -8,
-              bottom: 56,
-              child: FloatMotion(
-                distance: 8,
-                duration: const Duration(milliseconds: 3300),
-                delay: const Duration(milliseconds: 240),
-                rotate: -.01,
-                child: _FloatingPill(
-                  icon: ContentIcon.fromName(settings.heroPillTwoIconName),
-                  label: settings.heroPillTwoLabel,
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -958,6 +1346,7 @@ class _FloatingPill extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _TrustLine extends StatelessWidget {
   const _TrustLine({required this.settings});
 
@@ -998,18 +1387,16 @@ class _StatsBento extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mobile = Responsive.isMobile(context);
-
+    final width = MediaQuery.sizeOf(context).width;
+    final columns = width < 700 ? 1 : 2;
     final cards = [
       _MiniStat(
         value: '${settings.projectsShipped}',
         label: settings.projectsShippedLabel,
-        icon: Icons.rocket_launch_rounded,
       ),
       _MiniStat(
         value: '${settings.yearsExperience}',
         label: settings.yearsExperienceLabel,
-        icon: Icons.trending_up_rounded,
       ),
       _MiniStat(
         value: settings.availableForHire
@@ -1018,86 +1405,172 @@ class _StatsBento extends StatelessWidget {
         label: settings.availableForHire
             ? settings.availabilityOpenLabel
             : settings.availabilityFocusedLabel,
-        icon: settings.availableForHire
-            ? Icons.mark_email_read_rounded
-            : Icons.self_improvement_rounded,
+      ),
+      _MiniStat(
+        value: settings.qualityStatValue,
+        label: settings.qualityStatLabel,
       ),
     ];
 
-    final columns = mobile ? 1 : 3;
     return GridView.builder(
       itemCount: cards.length,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: columns,
-        crossAxisSpacing: 14,
-        mainAxisSpacing: 14,
-        childAspectRatio: mobile ? 3.25 : 2.0,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: width < 700 ? 4.0 : 1.7,
       ),
-      itemBuilder: (context, index) =>
-          NeoGlassSurface(borderRadius: 24, depth: 12, child: cards[index]),
+      itemBuilder: (context, index) => _StatCard(child: cards[index]),
+    );
+  }
+}
+
+class _StatCard extends StatefulWidget {
+  const _StatCard({required this.child});
+  final Widget child;
+  @override
+  State<_StatCard> createState() => _StatCardState();
+}
+
+class _StatCardState extends State<_StatCard> {
+  bool _hovered = false;
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        transform: Matrix4.translationValues(0, _hovered ? -4 : 0, 0),
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface.withValues(alpha: .88),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: _hovered
+                ? AppColors.violet.withValues(alpha: .38)
+                : AppColors.border,
+          ),
+          boxShadow: _hovered
+              ? [
+                  BoxShadow(
+                    color: AppColors.violet.withValues(alpha: .12),
+                    blurRadius: 28,
+                    offset: const Offset(0, 10),
+                  ),
+                ]
+              : null,
+        ),
+        child: widget.child,
+      ),
     );
   }
 }
 
 class _MiniStat extends StatelessWidget {
-  const _MiniStat({
-    required this.value,
-    required this.label,
-    required this.icon,
-  });
+  const _MiniStat({required this.value, required this.label});
 
   final String value;
   final String label;
-  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.all(17),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  theme.colorScheme.primaryContainer,
-                  theme.colorScheme.secondaryContainer,
-                ],
-              ),
-              borderRadius: BorderRadius.circular(14),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        ShaderMask(
+          shaderCallback: (bounds) => AppColors.gradient.createShader(bounds),
+          blendMode: BlendMode.srcIn,
+          child: Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.headlineLarge?.copyWith(
+              fontSize: 34,
+              fontWeight: FontWeight.w800,
             ),
-            child: Icon(icon, color: theme.colorScheme.onPrimaryContainer),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  label,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          label,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _GlobalPageBackdrop extends StatelessWidget {
+  const _GlobalPageBackdrop();
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Stack(
+        children: [
+          Positioned(
+            top: -180,
+            right: -160,
+            child: _GlowOrb(
+              size: 520,
+              colors: [
+                AppColors.violet.withValues(alpha: .16),
+                AppColors.cyan.withValues(alpha: .035),
+                Colors.transparent,
+              ],
+            ),
+          ),
+          Positioned(
+            bottom: -240,
+            left: -190,
+            child: _GlowOrb(
+              size: 560,
+              colors: [
+                AppColors.cyan.withValues(alpha: .10),
+                AppColors.violet.withValues(alpha: .035),
+                Colors.transparent,
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _GlowOrb extends StatelessWidget {
+  const _GlowOrb({required this.size, required this.colors});
+
+  final double size;
+  final List<Color> colors;
+
+  @override
+  Widget build(BuildContext context) {
+    return ImageFiltered(
+      imageFilter: ui.ImageFilter.blur(sigmaX: 34, sigmaY: 34),
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(
+            center: Alignment.center,
+            radius: .65,
+            colors: colors,
+            stops: const [0, .55, 1],
+          ),
+        ),
       ),
     );
   }
@@ -1158,176 +1631,160 @@ class _AboutSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: Responsive.horizontalPadding(context),
-        vertical: 88,
+    final mobile = Responsive.isMobile(context);
+    final currently = Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.border),
       ),
-      color: theme.colorScheme.surfaceContainerLow,
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1100),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final mobile = constraints.maxWidth < 820;
-              final copy = Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SectionTitle(
-                    eyebrow: settings.aboutEyebrow,
-                    title: settings.aboutTitle,
-                    subtitle: settings.aboutSubtitle,
-                  ),
-                  const SizedBox(height: 26),
-                  Text(
-                    settings.about,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                      height: 1.75,
-                    ),
-                  ),
-                ],
-              );
-
-              final stack = Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.primaryContainer,
-                              borderRadius: BorderRadius.circular(13),
-                            ),
-                            child: Icon(
-                              Icons.auto_awesome_rounded,
-                              color: theme.colorScheme.onPrimaryContainer,
-                            ),
-                          ),
-                          const SizedBox(width: 11),
-                          Text(
-                            settings.coreStackTitle,
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 18),
-                      if (settings.showSkills) ...[
-                        Text(
-                          settings.skillsTitle,
-                          style: theme.textTheme.labelLarge?.copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            for (final skill in settings.skills)
-                              Chip(
-                                label: Text(skill),
-                                visualDensity: VisualDensity.compact,
-                              ),
-                          ],
-                        ),
-                      ],
-                      if (settings.showCoreStack) ...[
-                        const SizedBox(height: 20),
-                        Text(
-                          settings.coreStackTitle,
-                          style: theme.textTheme.labelLarge?.copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            for (final technology in settings.coreStack)
-                              Chip(
-                                avatar: Icon(
-                                  ContentIcon.forTechnology(technology),
-                                  size: 17,
-                                ),
-                                label: Text(technology),
-                                visualDensity: VisualDensity.compact,
-                              ),
-                          ],
-                        ),
-                      ],
-                      if (settings.showWorkingStyle) ...[
-                        const SizedBox(height: 20),
-                        Text(
-                          settings.workingStyleTitle,
-                          style: theme.textTheme.labelLarge?.copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        for (final item in settings.workingStyle)
-                          _WorkingStyleRow(
-                            icon: ContentIcon.fromName(item.iconName),
-                            text: item.text,
-                          ),
-                      ],
-                    ],
-                  ),
-                ),
-              );
-
-              if (mobile) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [copy, const SizedBox(height: 24), stack],
-                );
-              }
-
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(flex: 6, child: copy),
-                  const SizedBox(width: 36),
-                  Expanded(flex: 4, child: stack),
-                ],
-              );
-            },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Currently',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
           ),
-        ),
+          const SizedBox(height: 18),
+          _CurrentlyRow(
+            icon: settings.availableForHire
+                ? Icons.circle_rounded
+                : Icons.pause_circle_outline_rounded,
+            label: settings.availableForHire ? 'Status' : 'Status',
+            value: settings.availableForHire
+                ? settings.availabilityOpenValue
+                : settings.availabilityFocusedValue,
+            accent: settings.availableForHire
+                ? AppColors.green
+                : AppColors.violet,
+          ),
+          const SizedBox(height: 12),
+          _CurrentlyRow(
+            icon: Icons.location_on_outlined,
+            label: 'Location',
+            value: settings.location,
+          ),
+          const SizedBox(height: 12),
+          _CurrentlyRow(
+            icon: Icons.handshake_outlined,
+            label: 'Contract',
+            value: settings.contractPreference,
+          ),
+        ],
       ),
     );
-  }
-}
 
-class _WorkingStyleRow extends StatelessWidget {
-  const _WorkingStyleRow({required this.icon, required this.text});
-
-  final IconData icon;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: theme.colorScheme.primary),
-          const SizedBox(width: 10),
-          Expanded(child: Text(text)),
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionTitle(
+          eyebrow: settings.aboutEyebrow,
+          title: settings.aboutTitle,
+          subtitle: settings.aboutSubtitle,
+        ),
+        const SizedBox(height: 24),
+        Text(
+          settings.about,
+          style: theme.textTheme.bodyLarge?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            height: 1.8,
+          ),
+        ),
+        const SizedBox(height: 26),
+        if (settings.showSkills && settings.skills.isNotEmpty) ...[
+          _SubSectionLabel(label: settings.skillsTitle),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final skill in settings.skills)
+                _DarkPill(label: skill, icon: Icons.check_rounded),
+            ],
+          ),
         ],
+        if (settings.showCoreStack && settings.coreStack.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          _SubSectionLabel(label: settings.coreStackTitle),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final technology in settings.coreStack)
+                _DarkPill(
+                  label: technology,
+                  icon: ContentIcon.forTechnology(technology),
+                ),
+            ],
+          ),
+        ],
+        if (settings.showWorkingStyle && settings.workingStyle.isNotEmpty) ...[
+          const SizedBox(height: 28),
+          _SubSectionLabel(label: settings.workingStyleTitle),
+          const SizedBox(height: 12),
+          Container(
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(
+              children: [
+                for (var i = 0; i < settings.workingStyle.length; i++) ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 15, 18, 15),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            color: AppColors.violet.withValues(alpha: .10),
+                            borderRadius: BorderRadius.circular(11),
+                          ),
+                          child: Icon(
+                            ContentIcon.fromName(
+                              settings.workingStyle[i].iconName,
+                            ),
+                            size: 17,
+                            color: AppColors.violet,
+                          ),
+                        ),
+                        const SizedBox(width: 11),
+                        Expanded(child: Text(settings.workingStyle[i].text)),
+                      ],
+                    ),
+                  ),
+                  if (i != settings.workingStyle.length - 1)
+                    const Divider(height: 1, indent: 61),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: mobile ? 72 : 92),
+      child: PortfolioContentFrame(
+        child: mobile
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [content, const SizedBox(height: 24), currently],
+              )
+            : Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(flex: 6, child: content),
+                  const SizedBox(width: 28),
+                  Expanded(flex: 4, child: currently),
+                ],
+              ),
       ),
     );
   }
@@ -1354,129 +1811,121 @@ class _ProjectsSection extends StatelessWidget {
     final filtered = category == 'All'
         ? projects
         : projects.where((project) => project.category == category).toList();
-    final theme = Theme.of(context);
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(
-        Responsive.horizontalPadding(context),
-        92,
-        Responsive.horizontalPadding(context),
-        92,
-      ),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1240),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SectionTitle(
-                eyebrow: settings.projectsEyebrow,
-                title: settings.projectsTitle,
-                subtitle: settings.projectsSubtitle,
+      padding: const EdgeInsets.symmetric(vertical: 92),
+      child: PortfolioContentFrame(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SectionTitle(
+              eyebrow: settings.projectsEyebrow,
+              title: settings.projectsTitle,
+              subtitle: settings.projectsSubtitle,
+            ),
+            const SizedBox(height: 28),
+            if (settings.showFeaturedProjects && projects.isNotEmpty) ...[
+              Text(
+                settings.featuredProjectsLabel,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
               ),
-              const SizedBox(height: 28),
-              if (settings.showFeaturedProjects && projects.isNotEmpty) ...[
-                Text(
-                  settings.featuredProjectsLabel,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                HorizontalGlassRail(
-                  padding: const EdgeInsets.only(top: 4, bottom: 6),
-                  children: [
-                    for (final project in projects.take(5))
-                      SizedBox(
-                        width: 360,
-                        height: 340,
-                        child: ProjectCard(project: project),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-              ],
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    for (var i = 0; i < categories.length; i++) ...[
-                      ChoiceChip(
-                        selected: category == categories[i],
-                        label: Text(categories[i]),
-                        onSelected: (_) => onCategoryChanged(categories[i]),
-                      ),
-                      if (i != categories.length - 1) const SizedBox(width: 8),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(height: 30),
-              if (projectsAsync.isLoading)
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(50),
-                    child: CircularProgressIndicator(),
-                  ),
-                )
-              else if (projectsAsync.hasError)
-                const _InlineError(
-                  message:
-                      'Projects could not be loaded. Check Firebase configuration and Firestore rules.',
-                )
-              else if (filtered.isEmpty)
-                const _EmptyState(
-                  icon: Icons.folder_open_rounded,
-                  title: 'No projects in this category yet',
-                  message:
-                      'Publish a project from the admin dashboard and it will appear here automatically.',
-                )
-              else
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final columns = constraints.maxWidth >= 1160
-                        ? 3
-                        : constraints.maxWidth >= 720
-                        ? 2
-                        : 1;
-                    return GridView.builder(
-                      itemCount: filtered.length,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: columns,
-                        crossAxisSpacing: 18,
-                        mainAxisSpacing: 18,
-                        childAspectRatio: columns == 1 ? 1.15 : 1.05,
-                      ),
-                      itemBuilder: (context, index) {
-                        return MotionReveal(
-                          delay: Duration(milliseconds: index * 70),
-                          child: ProjectCard(project: filtered[index]),
-                        );
-                      },
-                    );
-                  },
-                ),
-              const SizedBox(height: 24),
-              Row(
+              const SizedBox(height: 14),
+              HorizontalGlassRail(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                gap: 14,
                 children: [
-                  Icon(
-                    Icons.lock_open_rounded,
-                    size: 16,
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(width: 7),
-                  Text(
-                    settings.publishedProjectsNote,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+                  for (final project in projects.take(5))
+                    SizedBox(
+                      width: 360,
+                      height: 405,
+                      child: ProjectCard(project: project),
                     ),
-                  ),
                 ],
               ),
+              const SizedBox(height: 30),
             ],
-          ),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (var i = 0; i < categories.length; i++) ...[
+                    _FilterPill(
+                      label: categories[i],
+                      selected: category == categories[i],
+                      onTap: () => onCategoryChanged(categories[i]),
+                    ),
+                    if (i != categories.length - 1) const SizedBox(width: 8),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 26),
+            if (projectsAsync.isLoading)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(50),
+                  child: CircularProgressIndicator(),
+                ),
+              )
+            else if (projectsAsync.hasError)
+              const _InlineError(
+                message:
+                    'Projects could not be loaded. Check Firebase configuration and Firestore rules.',
+              )
+            else if (filtered.isEmpty)
+              const _EmptyState(
+                icon: Icons.folder_open_rounded,
+                title: 'No projects in this category yet',
+                message:
+                    'Publish a project from the admin dashboard and it will appear here automatically.',
+              )
+            else
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final columns = constraints.maxWidth >= 1080
+                      ? 3
+                      : constraints.maxWidth >= 680
+                      ? 2
+                      : 1;
+                  return GridView.builder(
+                    itemCount: filtered.length,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: columns,
+                      crossAxisSpacing: 16,
+                      mainAxisSpacing: 16,
+                      childAspectRatio: columns == 1 ? 1.05 : .93,
+                    ),
+                    itemBuilder: (context, index) => MotionReveal(
+                      delay: Duration(milliseconds: index * 60),
+                      child: ProjectCard(project: filtered[index]),
+                    ),
+                  );
+                },
+              ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                const Icon(
+                  Icons.visibility_outlined,
+                  size: 16,
+                  color: AppColors.cyan,
+                ),
+                const SizedBox(width: 7),
+                Expanded(
+                  child: Text(
+                    settings.publishedProjectsNote,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -1494,16 +1943,13 @@ class _ServicesSection extends StatelessWidget {
     final services = servicesAsync.value ?? const <ServiceModel>[];
 
     return Container(
-      padding: EdgeInsets.fromLTRB(
-        Responsive.horizontalPadding(context),
-        88,
-        Responsive.horizontalPadding(context),
-        94,
-      ),
-      color: Theme.of(context).colorScheme.surfaceContainerLow,
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1240),
+      width: double.infinity,
+      color: Theme.of(
+        context,
+      ).colorScheme.surfaceContainerLow.withValues(alpha: .55),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 90),
+        child: PortfolioContentFrame(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1512,7 +1958,7 @@ class _ServicesSection extends StatelessWidget {
                 title: settings.servicesTitle,
                 subtitle: settings.servicesSubtitle,
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 28),
               if (servicesAsync.isLoading)
                 const Center(
                   child: Padding(
@@ -1532,9 +1978,9 @@ class _ServicesSection extends StatelessWidget {
               else
                 LayoutBuilder(
                   builder: (context, constraints) {
-                    final columns = constraints.maxWidth >= 1180
-                        ? 4
-                        : constraints.maxWidth >= 760
+                    final columns = constraints.maxWidth >= 1100
+                        ? 3
+                        : constraints.maxWidth >= 720
                         ? 2
                         : 1;
                     return GridView.builder(
@@ -1543,26 +1989,26 @@ class _ServicesSection extends StatelessWidget {
                       physics: const NeverScrollableScrollPhysics(),
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: columns,
-                        crossAxisSpacing: 18,
-                        mainAxisSpacing: 18,
-                        childAspectRatio: columns == 1 ? 1.35 : 1.12,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16,
+                        childAspectRatio: columns == 1 ? 1.30 : 1.08,
                       ),
-                      itemBuilder: (context, index) {
-                        return MotionReveal(
-                          delay: Duration(milliseconds: index * 70),
-                          child: ServiceCard(service: services[index]),
-                        );
-                      },
+                      itemBuilder: (context, index) => MotionReveal(
+                        delay: Duration(milliseconds: index * 60),
+                        child: ServiceCard(service: services[index]),
+                      ),
                     );
                   },
                 ),
-              if (settings.showProcess) ...[
-                const SizedBox(height: 56),
+              if (settings.showProcess && settings.processItems.isNotEmpty) ...[
+                const SizedBox(height: 54),
                 Text(
                   settings.processTitle,
-                  style: Theme.of(context).textTheme.titleLarge,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 16),
                 _ProcessRail(items: settings.processItems),
               ],
             ],
@@ -1577,59 +2023,69 @@ class _ProcessRail extends StatelessWidget {
   const _ProcessRail({required this.items});
 
   final List<ProcessItem> items;
-  static const purple = Color(0xFF7C3AED);
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
-    return HorizontalGlassRail(
-      showHint: true,
-      showArrow: true,
-      gap: 12,
-      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 9),
-      children: [
-        for (final item in items)
-          NeoGlassSurface(
-            padding: const EdgeInsets.fromLTRB(7, 7, 16, 7),
-            borderRadius: 999,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: const BoxDecoration(
-                    color: purple,
-                    shape: BoxShape.circle,
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (var i = 0; i < items.length; i++) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: const BoxDecoration(
+                      gradient: AppColors.gradient,
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      items[i].number,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
                   ),
-                  child: Icon(
-                    ContentIcon.fromName(item.iconName),
+                  const SizedBox(width: 9),
+                  Icon(
+                    ContentIcon.fromName(items[i].iconName),
                     size: 17,
-                    color: Colors.white,
+                    color: AppColors.cyan,
                   ),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  item.number,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: .5,
+                  const SizedBox(width: 7),
+                  Text(
+                    items[i].label,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  item.label,
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-      ],
+            if (i != items.length - 1) ...[
+              const SizedBox(width: 8),
+              Icon(
+                Icons.arrow_forward_rounded,
+                size: 14,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 8),
+            ],
+          ],
+        ],
+      ),
     );
   }
 }
@@ -1660,10 +2116,9 @@ class _ContactSection extends StatelessWidget {
   final Future<void> Function(String value) onOpen;
 
   String? _required(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'This field is required';
-    }
-    return null;
+    return value == null || value.trim().isEmpty
+        ? 'This field is required'
+        : null;
   }
 
   String? _email(String? value) {
@@ -1680,35 +2135,13 @@ class _ContactSection extends StatelessWidget {
     final details = Container(
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            theme.colorScheme.primary.withValues(alpha: .14),
-            theme.colorScheme.secondary.withValues(alpha: .10),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(
-          color: theme.colorScheme.primary.withValues(alpha: .20),
-        ),
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface.withValues(alpha: .78),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(
-              Icons.chat_bubble_outline_rounded,
-              color: theme.colorScheme.primary,
-            ),
-          ),
-          const SizedBox(height: 20),
           Text(
             settings.contactCardTitle,
             style: theme.textTheme.headlineMedium,
@@ -1718,10 +2151,10 @@ class _ContactSection extends StatelessWidget {
             settings.contactCardBody,
             style: theme.textTheme.bodyLarge?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
-              height: 1.65,
+              height: 1.72,
             ),
           ),
-          const SizedBox(height: 25),
+          const SizedBox(height: 22),
           _ContactLine(
             icon: Icons.email_outlined,
             label: settings.email,
@@ -1741,170 +2174,167 @@ class _ContactSection extends StatelessWidget {
             label: settings.location,
             onTap: null,
           ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 4,
-            children: [
-              for (final entry in settings.socials.entries)
-                if (entry.value.isNotEmpty)
-                  IconButton(
-                    tooltip: entry.key,
-                    onPressed: () => onOpen(entry.value),
-                    icon: Icon(_socialIcon(entry.key)),
-                  ),
-            ],
-          ),
+          if (settings.socials.values.any((value) => value.isNotEmpty)) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              children: [
+                for (final entry in settings.socials.entries)
+                  if (entry.value.isNotEmpty)
+                    _SocialPill(
+                      label: entry.key,
+                      icon: _socialIcon(entry.key),
+                      onTap: () => onOpen(entry.value),
+                    ),
+              ],
+            ),
+          ],
         ],
       ),
     );
 
-    final form = Form(
-      key: formKey,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(settings.contactFormTitle, style: theme.textTheme.titleLarge),
-          const SizedBox(height: 16),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final inline = constraints.maxWidth >= 560;
-              final nameField = TextFormField(
-                controller: nameController,
-                validator: _required,
-                textInputAction: TextInputAction.next,
-                decoration: InputDecoration(
-                  labelText: settings.contactNameLabel,
-                  prefixIcon: const Icon(Icons.person_outline_rounded),
-                ),
-              );
-              final emailField = TextFormField(
-                controller: emailController,
-                validator: _email,
-                keyboardType: TextInputType.emailAddress,
-                textInputAction: TextInputAction.next,
-                decoration: InputDecoration(
-                  labelText: settings.contactEmailLabel,
-                  prefixIcon: const Icon(Icons.alternate_email_rounded),
-                ),
-              );
-
-              return Column(
-                children: [
-                  if (inline)
-                    Row(
-                      children: [
-                        Expanded(child: nameField),
-                        const SizedBox(width: 12),
-                        Expanded(child: emailField),
-                      ],
-                    )
-                  else ...[
-                    nameField,
-                    const SizedBox(height: 12),
-                    emailField,
-                  ],
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: budgetController,
-                    textInputAction: TextInputAction.next,
-                    decoration: InputDecoration(
-                      labelText: settings.contactBudgetLabel,
-                      hintText: settings.contactBudgetHint,
-                      prefixIcon: const Icon(Icons.payments_outlined),
-                    ),
+    final form = Container(
+      padding: EdgeInsets.all(mobile ? 18 : 24),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Form(
+        key: formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(settings.contactFormTitle, style: theme.textTheme.titleLarge),
+            const SizedBox(height: 18),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final inline = constraints.maxWidth >= 560;
+                final nameField = TextFormField(
+                  controller: nameController,
+                  validator: _required,
+                  decoration: InputDecoration(
+                    labelText: settings.contactNameLabel,
+                    prefixIcon: const Icon(Icons.person_outline_rounded),
                   ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: messageController,
-                    validator: _required,
-                    maxLines: 7,
-                    decoration: InputDecoration(
-                      labelText: settings.contactMessageLabel,
-                      alignLabelWithHint: true,
-                      hintText: settings.contactMessageHint,
-                      prefixIcon: const Padding(
-                        padding: EdgeInsets.only(bottom: 108),
-                        child: Icon(Icons.edit_note_rounded),
+                );
+                final emailField = TextFormField(
+                  controller: emailController,
+                  validator: _email,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: InputDecoration(
+                    labelText: settings.contactEmailLabel,
+                    prefixIcon: const Icon(Icons.alternate_email_rounded),
+                  ),
+                );
+                return Column(
+                  children: [
+                    if (inline)
+                      Row(
+                        children: [
+                          Expanded(child: nameField),
+                          const SizedBox(width: 12),
+                          Expanded(child: emailField),
+                        ],
+                      )
+                    else ...[
+                      nameField,
+                      const SizedBox(height: 12),
+                      emailField,
+                    ],
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: budgetController,
+                      decoration: InputDecoration(
+                        labelText: settings.contactBudgetLabel,
+                        hintText: settings.contactBudgetHint,
+                        prefixIcon: const Icon(Icons.payments_outlined),
                       ),
                     ),
-                  ),
-                ],
-              );
-            },
-          ),
-          const SizedBox(height: 16),
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 220),
-            child: submitted
-                ? Container(
-                    key: const ValueKey('success'),
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(18),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: messageController,
+                      validator: _required,
+                      minLines: 6,
+                      maxLines: 8,
+                      decoration: InputDecoration(
+                        labelText: settings.contactMessageLabel,
+                        alignLabelWithHint: true,
+                        hintText: settings.contactMessageHint,
+                        prefixIcon: const Padding(
+                          padding: EdgeInsets.only(bottom: 86),
+                          child: Icon(Icons.edit_note_rounded),
+                        ),
+                      ),
                     ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.check_circle_outline_rounded),
-                        const SizedBox(width: 10),
-                        Expanded(child: Text(settings.contactSuccessMessage)),
-                      ],
-                    ),
-                  )
-                : FilledButton.icon(
-                    key: const ValueKey('submit'),
-                    onPressed: submitting ? null : onSubmit,
-                    icon: submitting
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.send_rounded),
-                    label: Text(
-                      submitting
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: submitted
+                  ? Container(
+                      key: const ValueKey('success'),
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(15),
+                      decoration: BoxDecoration(
+                        color: AppColors.green.withValues(alpha: .10),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: AppColors.green.withValues(alpha: .22),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.check_circle_outline_rounded,
+                            color: AppColors.green,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(child: Text(settings.contactSuccessMessage)),
+                        ],
+                      ),
+                    )
+                  : _GradientSubmitButton(
+                      key: const ValueKey('submit'),
+                      label: submitting
                           ? settings.contactSendingLabel
                           : settings.contactSubmitLabel,
+                      loading: submitting,
+                      onPressed: submitting ? null : onSubmit,
                     ),
-                  ),
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(
-        Responsive.horizontalPadding(context),
-        90,
-        Responsive.horizontalPadding(context),
-        94,
-      ),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1200),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SectionTitle(
-                eyebrow: settings.contactEyebrow,
-                title: settings.contactTitle,
-                subtitle: settings.contactSubtitle,
+      padding: const EdgeInsets.symmetric(vertical: 92),
+      child: PortfolioContentFrame(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SectionTitle(
+              eyebrow: settings.contactEyebrow,
+              title: settings.contactTitle,
+              subtitle: settings.contactSubtitle,
+            ),
+            const SizedBox(height: 28),
+            if (mobile)
+              Column(children: [details, const SizedBox(height: 16), form])
+            else
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(flex: 4, child: details),
+                  const SizedBox(width: 18),
+                  Expanded(flex: 6, child: form),
+                ],
               ),
-              const SizedBox(height: 34),
-              if (mobile)
-                Column(children: [details, const SizedBox(height: 20), form])
-              else
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(flex: 4, child: details),
-                    const SizedBox(width: 28),
-                    Expanded(flex: 5, child: form),
-                  ],
-                ),
-            ],
-          ),
+          ],
         ),
       ),
     );
@@ -1925,6 +2355,292 @@ class _ContactSection extends StatelessWidget {
       default:
         return Icons.link_rounded;
     }
+  }
+}
+
+class _HeroTag extends StatelessWidget {
+  const _HeroTag({required this.label, required this.icon});
+  final String label;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return _DarkPill(label: label, icon: icon);
+  }
+}
+
+class _DarkPill extends StatelessWidget {
+  const _DarkPill({required this.label, required this.icon});
+  final String label;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: AppColors.cyan),
+          const SizedBox(width: 7),
+          Text(
+            label,
+            style: Theme.of(
+              context,
+            ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FilterPill extends StatelessWidget {
+  const _FilterPill({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme.labelMedium;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+          decoration: BoxDecoration(
+            gradient: selected ? AppColors.gradient : null,
+            color: selected ? null : Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: selected ? Colors.transparent : AppColors.borderStrong,
+            ),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: AppColors.violet.withValues(alpha: .18),
+                      blurRadius: 16,
+                    ),
+                  ]
+                : null,
+          ),
+          child: Text(
+            label,
+            maxLines: 1,
+            softWrap: false,
+            overflow: TextOverflow.visible,
+            style: text?.copyWith(
+              color: selected
+                  ? Colors.white
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SubSectionLabel extends StatelessWidget {
+  const _SubSectionLabel({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label.toUpperCase(),
+      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+        color: AppColors.cyan,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 1.5,
+      ),
+    );
+  }
+}
+
+class _CurrentlyRow extends StatelessWidget {
+  const _CurrentlyRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.accent,
+  });
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color? accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: (accent ?? AppColors.violet).withValues(alpha: .10),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, size: 18, color: accent ?? AppColors.violet),
+        ),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(value, style: Theme.of(context).textTheme.titleMedium),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TrustItem extends StatelessWidget {
+  const _TrustItem({required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 4,
+          height: 4,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            color: AppColors.cyan,
+          ),
+        ),
+        const SizedBox(width: 7),
+        Text(
+          text,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SocialPill extends StatelessWidget {
+  const _SocialPill({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, size: 16),
+      label: Text(label),
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(0, 42),
+        padding: const EdgeInsets.symmetric(horizontal: 13),
+      ),
+    );
+  }
+}
+
+class _GradientSubmitButton extends StatelessWidget {
+  const _GradientSubmitButton({
+    super.key,
+    required this.label,
+    required this.loading,
+    required this.onPressed,
+  });
+  final String label;
+  final bool loading;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: onPressed == null ? null : AppColors.gradient,
+        color: onPressed == null ? AppColors.surfaceElevated : null,
+        borderRadius: BorderRadius.circular(999),
+        boxShadow: onPressed == null
+            ? null
+            : [
+                BoxShadow(
+                  color: AppColors.violet.withValues(alpha: .18),
+                  blurRadius: 18,
+                  offset: const Offset(0, 7),
+                ),
+              ],
+      ),
+      child: SizedBox(
+        width: double.infinity,
+        height: 52,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onPressed,
+            borderRadius: BorderRadius.circular(999),
+            child: Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (loading)
+                    const SizedBox(
+                      width: 17,
+                      height: 17,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  else
+                    const Icon(
+                      Icons.send_rounded,
+                      size: 17,
+                      color: Colors.white,
+                    ),
+                  const SizedBox(width: 8),
+                  Text(
+                    label,
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

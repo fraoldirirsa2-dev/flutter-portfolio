@@ -112,12 +112,15 @@ class SiteSettings {
     required this.availabilityOpenLabel,
     required this.availabilityFocusedValue,
     required this.availabilityFocusedLabel,
+    required this.qualityStatValue,
+    required this.qualityStatLabel,
     required this.availableForHire,
     required this.cvUrl,
     required this.profilePhotoUrl,
     required this.email,
     required this.phone,
     required this.location,
+    required this.contractPreference,
     required this.socials,
     required this.showHero,
     required this.showTechStack,
@@ -209,6 +212,8 @@ class SiteSettings {
   final String availabilityOpenLabel;
   final String availabilityFocusedValue;
   final String availabilityFocusedLabel;
+  final String qualityStatValue;
+  final String qualityStatLabel;
   final bool availableForHire;
 
   final String cvUrl;
@@ -216,6 +221,7 @@ class SiteSettings {
   final String email;
   final String phone;
   final String location;
+  final String contractPreference;
   final Map<String, String> socials;
 
   final bool showHero;
@@ -246,7 +252,7 @@ class SiteSettings {
     heroPrimaryCta: 'Let’s work together',
     heroSecondaryCta: 'View my work',
     heroCvLabel: 'CV',
-    heroAvailabilityLabel: 'Available for hire',
+    heroAvailabilityLabel: 'Available for freelance',
     heroPillOneLabel: 'Flutter',
     heroPillOneIconName: 'flutter_dash_rounded',
     heroPillTwoLabel: 'Firebase',
@@ -335,7 +341,7 @@ class SiteSettings {
       ProcessItem(number: '06', iconName: 'support_agent_rounded', label: 'Support'),
     ],
     contactEyebrow: 'Contact',
-    contactTitle: 'Have something worth building?',
+    contactTitle: 'Let’s build something.',
     contactSubtitle:
         'No pressure, no giant brief required. A few clear sentences are enough to start the conversation.',
     contactCardTitle: 'Let’s make the next project a good one.',
@@ -365,12 +371,15 @@ class SiteSettings {
     availabilityOpenLabel: 'For new opportunities',
     availabilityFocusedValue: 'Focused',
     availabilityFocusedLabel: 'Current availability',
+    qualityStatValue: '100%',
+    qualityStatLabel: 'Responsive UI focus',
     availableForHire: true,
     cvUrl: '',
     profilePhotoUrl: '',
     email: 'hello@example.com',
     phone: '+251 900 000 000',
     location: 'Addis Ababa, Ethiopia',
+    contractPreference: 'Freelance / contract',
     socials: {
       'github': '',
       'linkedin': '',
@@ -471,12 +480,15 @@ class SiteSettings {
       availabilityOpenLabel: _asString(data['availabilityOpenLabel'], defaults.availabilityOpenLabel),
       availabilityFocusedValue: _asString(data['availabilityFocusedValue'], defaults.availabilityFocusedValue),
       availabilityFocusedLabel: _asString(data['availabilityFocusedLabel'], defaults.availabilityFocusedLabel),
+      qualityStatValue: _asString(data['qualityStatValue'], defaults.qualityStatValue),
+      qualityStatLabel: _asString(data['qualityStatLabel'], defaults.qualityStatLabel),
       availableForHire: data['availableForHire'] as bool? ?? defaults.availableForHire,
       cvUrl: _asString(data['cvUrl'], defaults.cvUrl),
       profilePhotoUrl: _asString(data['profilePhotoUrl'], defaults.profilePhotoUrl),
       email: _asString(data['email'], defaults.email),
       phone: _asString(data['phone'], defaults.phone),
       location: _asString(data['location'], defaults.location),
+      contractPreference: _asString(data['contractPreference'], defaults.contractPreference),
       socials: {
         for (final entry in defaults.socials.entries)
           entry.key: rawSocials[entry.key] ?? entry.value,
@@ -567,12 +579,15 @@ class SiteSettings {
     String? availabilityOpenLabel,
     String? availabilityFocusedValue,
     String? availabilityFocusedLabel,
+    String? qualityStatValue,
+    String? qualityStatLabel,
     bool? availableForHire,
     String? cvUrl,
     String? profilePhotoUrl,
     String? email,
     String? phone,
     String? location,
+    String? contractPreference,
     Map<String, String>? socials,
     bool? showHero,
     bool? showTechStack,
@@ -658,12 +673,15 @@ class SiteSettings {
       availabilityOpenLabel: availabilityOpenLabel ?? this.availabilityOpenLabel,
       availabilityFocusedValue: availabilityFocusedValue ?? this.availabilityFocusedValue,
       availabilityFocusedLabel: availabilityFocusedLabel ?? this.availabilityFocusedLabel,
+      qualityStatValue: qualityStatValue ?? this.qualityStatValue,
+      qualityStatLabel: qualityStatLabel ?? this.qualityStatLabel,
       availableForHire: availableForHire ?? this.availableForHire,
       cvUrl: cvUrl ?? this.cvUrl,
       profilePhotoUrl: profilePhotoUrl ?? this.profilePhotoUrl,
       email: email ?? this.email,
       phone: phone ?? this.phone,
       location: location ?? this.location,
+      contractPreference: contractPreference ?? this.contractPreference,
       socials: socials ?? this.socials,
       showHero: showHero ?? this.showHero,
       showTechStack: showTechStack ?? this.showTechStack,
@@ -751,12 +769,15 @@ class SiteSettings {
         'availabilityOpenLabel': availabilityOpenLabel,
         'availabilityFocusedValue': availabilityFocusedValue,
         'availabilityFocusedLabel': availabilityFocusedLabel,
+        'qualityStatValue': qualityStatValue,
+        'qualityStatLabel': qualityStatLabel,
         'availableForHire': availableForHire,
         'cvUrl': cvUrl,
         'profilePhotoUrl': profilePhotoUrl,
         'email': email,
         'phone': phone,
         'location': location,
+        'contractPreference': contractPreference,
         'socials': socials,
         'showHero': showHero,
         'showTechStack': showTechStack,
