@@ -1351,9 +1351,18 @@ class _ProjectsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final projects = projectsAsync.value ?? const <Project>[];
+    final showFeatured = settings.showFeaturedProjects;
+    final featuredProjects = showFeatured
+        ? projects.where((project) => project.featured).toList()
+        : const <Project>[];
+    final galleryProjects = showFeatured
+        ? projects.where((project) => !project.featured).toList()
+        : projects;
     final filtered = category == 'All'
-        ? projects
-        : projects.where((project) => project.category == category).toList();
+        ? galleryProjects
+        : galleryProjects
+              .where((project) => project.category == category)
+              .toList();
     final theme = Theme.of(context);
 
     return Padding(
@@ -1375,7 +1384,8 @@ class _ProjectsSection extends StatelessWidget {
                 subtitle: settings.projectsSubtitle,
               ),
               const SizedBox(height: 28),
-              if (settings.showFeaturedProjects && projects.isNotEmpty) ...[
+              if (settings.showFeaturedProjects &&
+                  featuredProjects.isNotEmpty) ...[
                 Text(
                   settings.featuredProjectsLabel,
                   style: theme.textTheme.titleLarge?.copyWith(
@@ -1386,7 +1396,7 @@ class _ProjectsSection extends StatelessWidget {
                 HorizontalGlassRail(
                   padding: const EdgeInsets.only(top: 4, bottom: 6),
                   children: [
-                    for (final project in projects.take(5))
+                    for (final project in featuredProjects.take(5))
                       SizedBox(
                         width: 360,
                         height: 340,
