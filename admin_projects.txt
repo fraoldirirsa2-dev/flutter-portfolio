@@ -1,0 +1,380 @@
+import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../models/project.dart';
+import '../../providers.dart';
+import '../../widgets/admin_scaffold.dart';
+
+class AdminProjectsScreen extends ConsumerWidget {
+  const AdminProjectsScreen({super.key});
+
+  Future<void> _openEditor(BuildContext context, WidgetRef ref, {Project? project}) async {
+    await showDialog<void>(
+      context: context,
+      builder: (_) => _ProjectEditorDialog(project: project),
+    );
+  }
+
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref, Project project) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete project?'),
+        content: Text('Delete “${project.title}” from the portfolio? This cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          FilledButton.tonal(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await ref.read(firebaseServiceProvider).deleteProject(project);
+      ref.invalidate(allProjectsProvider);
+      ref.invalidate(publishedProjectsProvider);
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Delete failed: $error')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final projectsAsync = ref.watch(allProjectsProvider);
+    return AdminScaffold(
+      title: 'Projects',
+      selectedPath: '/admin/projects',
+      child: projectsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (_, _) => const Center(child: Text('Projects could not be loaded.')),
+        data: (projects) => Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Project CMS', style: Theme.of(context).textTheme.headlineMedium),
+                        const SizedBox(height: 4),
+                        Text('${projects.length} projects • reorder with the arrow controls', style: Theme.of(context).textTheme.bodyMedium),
+                      ],
+                    ),
+                  ),
+                  FilledButton.icon(
+                    onPressed: () => _openEditor(context, ref),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add project'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Expanded(
+                child: projects.isEmpty
+                    ? const Center(child: Text('No projects yet. Add your first project.'))
+                    : ReorderableListView.builder(
+                        buildDefaultDragHandles: false,
+                        itemCount: projects.length,
+                        onReorderItem: (oldIndex, newIndex) async {
+                          final updated = [...projects];
+                          final item = updated.removeAt(oldIndex);
+                          updated.insert(newIndex, item);
+                          await ref.read(firebaseServiceProvider).setProjectOrder(updated);
+                        },
+                        itemBuilder: (context, index) {
+                          final project = projects[index];
+                          return Card(
+                            key: ValueKey(project.id),
+                            margin: const EdgeInsets.only(bottom: 10),
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                              leading: ReorderableDragStartListener(
+                                index: index,
+                                child: const Icon(Icons.drag_indicator),
+                              ),
+                              title: Text(project.title),
+                              subtitle: Text('${project.category} • ${project.techStack.join(', ')}'),
+                              trailing: Wrap(
+                                spacing: 2,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Tooltip(
+                                    message: project.published ? 'Unpublish' : 'Publish',
+                                    child: Switch(
+                                      value: project.published,
+                                      onChanged: (value) async {
+                                        await ref.read(firebaseServiceProvider).updateProject(project.id, {'published': value});
+                                        ref.invalidate(allProjectsProvider);
+                                        ref.invalidate(publishedProjectsProvider);
+                                      },
+                                    ),
+                                  ),
+                                  Tooltip(
+                                    message: project.featured ? 'Unfeature' : 'Feature',
+                                    child: IconButton(
+                                      onPressed: () async {
+                                      await ref.read(firebaseServiceProvider).updateProject(project.id, {'featured': !project.featured});
+                                      ref.invalidate(allProjectsProvider);
+                                      ref.invalidate(publishedProjectsProvider);
+                                    },
+                                      icon: Icon(project.featured ? Icons.star : Icons.star_border),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Edit',
+                                    onPressed: () => _openEditor(context, ref, project: project),
+                                    icon: const Icon(Icons.edit_outlined),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Delete',
+                                    onPressed: () => _confirmDelete(context, ref, project),
+                                    icon: const Icon(Icons.delete_outline),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProjectEditorDialog extends ConsumerStatefulWidget {
+  const _ProjectEditorDialog({this.project});
+  final Project? project;
+
+  @override
+  ConsumerState<_ProjectEditorDialog> createState() => _ProjectEditorDialogState();
+}
+
+class _ProjectEditorDialogState extends ConsumerState<_ProjectEditorDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _title;
+  late final TextEditingController _description;
+  late final TextEditingController _github;
+  late final TextEditingController _live;
+  late final TextEditingController _techStack;
+  late String _category;
+  late bool _published;
+  late bool _featured;
+  Uint8List? _imageBytes;
+  String? _imageName;
+  bool _saving = false;
+
+  final _categories = const [
+    'Mobile Apps',
+    'Web Apps',
+    'Packages',
+    'UI/UX',
+    'Open Source',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    final p = widget.project;
+    _title = TextEditingController(text: p?.title ?? '');
+    _description = TextEditingController(text: p?.description ?? '');
+    _github = TextEditingController(text: p?.githubUrl ?? '');
+    _live = TextEditingController(text: p?.liveUrl ?? '');
+    _techStack = TextEditingController(text: p?.techStack.join(', ') ?? '');
+    _category = p?.category ?? _categories.first;
+    _published = p?.published ?? false;
+    _featured = p?.featured ?? false;
+  }
+
+  @override
+  void dispose() {
+    _title.dispose();
+    _description.dispose();
+    _github.dispose();
+    _live.dispose();
+    _techStack.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    final file = await FilePicker.pickFile(type: FileType.image);
+    if (file == null) return;
+    final bytes = await file.readAsBytes();
+    setState(() {
+      _imageBytes = bytes;
+      _imageName = file.name;
+    });
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _saving = true);
+    try {
+      final service = ref.read(firebaseServiceProvider);
+      var imageUrl = widget.project?.imageUrl ?? '';
+      if (_imageBytes != null && _imageName != null) {
+        imageUrl = await service.uploadProjectImage(
+          bytes: _imageBytes!,
+          fileName: _imageName!,
+        );
+      }
+
+      final data = <String, dynamic>{
+        'title': _title.text.trim(),
+        'description': _description.text.trim(),
+        'category': _category,
+        'techStack': _techStack.text
+            .split(',')
+            .map((value) => value.trim())
+            .where((value) => value.isNotEmpty)
+            .toList(),
+        'imageUrl': imageUrl,
+        'githubUrl': _github.text.trim(),
+        'liveUrl': _live.text.trim(),
+        'featured': _featured,
+        'published': _published,
+        'order': widget.project?.order ?? 999,
+      };
+
+      if (widget.project == null) {
+        await service.createProject(data);
+      } else {
+        await service.updateProject(widget.project!.id, data);
+        if (_imageBytes != null && widget.project!.imageUrl.isNotEmpty && widget.project!.imageUrl != imageUrl) {
+          await service.deleteStorageUrl(widget.project!.imageUrl);
+        }
+      }
+      if (mounted) Navigator.pop(context);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Save failed: $error')));
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = widget.project?.imageUrl ?? '';
+    return AlertDialog(
+      title: Text(widget.project == null ? 'Add project' : 'Edit project'),
+      content: SizedBox(
+        width: 760,
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final compact = constraints.maxWidth < 560;
+                    final titleField = TextFormField(
+                      controller: _title,
+                      validator: _required,
+                      decoration: const InputDecoration(labelText: 'Title'),
+                    );
+                    final categoryField = DropdownButtonFormField<String>(
+                      initialValue: _category,
+                      decoration: const InputDecoration(labelText: 'Category'),
+                      items: [
+                        for (final category in _categories)
+                          DropdownMenuItem(value: category, child: Text(category)),
+                      ],
+                      onChanged: (value) => setState(() => _category = value ?? _category),
+                    );
+                    return compact
+                        ? Column(children: [titleField, const SizedBox(height: 12), categoryField])
+                        : Row(children: [Expanded(child: titleField), const SizedBox(width: 12), Expanded(child: categoryField)]);
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(controller: _description, validator: _required, maxLines: 4, decoration: const InputDecoration(labelText: 'Description')),
+                const SizedBox(height: 12),
+                TextFormField(controller: _techStack, validator: _required, decoration: const InputDecoration(labelText: 'Tech stack', hintText: 'Flutter, Dart, Firebase, Riverpod')),
+                const SizedBox(height: 12),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final compact = constraints.maxWidth < 560;
+                    final githubField = TextFormField(
+                      controller: _github,
+                      keyboardType: TextInputType.url,
+                      decoration: const InputDecoration(labelText: 'GitHub URL'),
+                    );
+                    final liveField = TextFormField(
+                      controller: _live,
+                      keyboardType: TextInputType.url,
+                      decoration: const InputDecoration(labelText: 'Live Demo URL'),
+                    );
+                    return compact
+                        ? Column(children: [githubField, const SizedBox(height: 12), liveField])
+                        : Row(children: [Expanded(child: githubField), const SizedBox(width: 12), Expanded(child: liveField)]);
+                  },
+                ),
+                const SizedBox(height: 16),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Wrap(
+                    spacing: 12,
+                    runSpacing: 10,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: _pickImage,
+                        icon: const Icon(Icons.upload_file),
+                        label: Text(_imageName == null ? 'Upload image' : _imageName!),
+                      ),
+                      if (imageUrl.isNotEmpty && _imageBytes == null)
+                        const Text('Current image will stay unless replaced.'),
+                    ],
+                  ),
+                ),
+                if (_imageBytes != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    height: 130,
+                    width: double.infinity,
+                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), color: Theme.of(context).colorScheme.surfaceContainerHighest),
+                    clipBehavior: Clip.antiAlias,
+                    child: Image.memory(_imageBytes!, fit: BoxFit.cover),
+                  ),
+                ],
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  value: _published,
+                  onChanged: (value) => setState(() => _published = value),
+                  title: const Text('Published'),
+                  subtitle: const Text('Published projects are visible on the public gallery.'),
+                ),
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  value: _featured,
+                  onChanged: (value) => setState(() => _featured = value),
+                  title: const Text('Featured'),
+                  subtitle: const Text('Adds a Featured badge to the public project card.'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: _saving ? null : () => Navigator.pop(context), child: const Text('Cancel')),
+        FilledButton.icon(
+          onPressed: _saving ? null : _save,
+          icon: _saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.save_outlined),
+          label: Text(_saving ? 'Saving…' : 'Save project'),
+        ),
+      ],

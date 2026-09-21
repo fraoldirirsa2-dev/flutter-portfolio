@@ -1,0 +1,9 @@
+{
+  "name": "Junior Flutter Developer Portfolio",
+  "short_name": "Flutter Portfolio",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#F8F8FC",
+  "theme_color": "#6C5CE7",
+  "description": "A modern Flutter Web portfolio powered by Firebase."
+}
